@@ -1,6 +1,6 @@
-const scriptURL = "https://script.google.com/macros/s/AKfycbzVF-vCtUEcc-6nyHFapHlmWSo3UM7vQm1-keDT7bTs/dev";
+document.getElementById("meterForm").addEventListener("submit", function (event) {
+    event.preventDefault();
 
-function saveReading() {
     let uscNumber = document.getElementById("uscNumber").value.trim();
     let date = document.getElementById("date").value;
     let units = parseFloat(document.getElementById("units").value);
@@ -10,7 +10,8 @@ function saveReading() {
         return;
     }
 
-    fetch(scriptURL, {
+    // Send data to Google Sheets
+    fetch("https://script.google.com/macros/s/AKfycbzVF-vCtUEcc-6nyHFapHlmWSo3UM7vQm1-keDT7bTs/dev", {
         method: "POST",
         body: JSON.stringify({ uscNumber, date, units }),
     }).then(response => response.json())
@@ -18,10 +19,11 @@ function saveReading() {
         alert("Reading saved successfully!");
         loadUserHistory(uscNumber);
     });
-}
+});
 
+// Fetch user-specific history
 function loadUserHistory(uscNumber) {
-    fetch(`${scriptURL}?uscNumber=${encodeURIComponent(uscNumber)}`)
+    fetch(`https://script.google.com/macros/s/AKfycbzVF-vCtUEcc-6nyHFapHlmWSo3UM7vQm1-keDT7bTs/dev?uscNumber=${encodeURIComponent(uscNumber)}`)
         .then(response => response.json())
         .then(data => {
             let table = document.getElementById("historyTable");
@@ -46,14 +48,12 @@ function loadUserHistory(uscNumber) {
                 labels.push(entry.date);
                 readings.push(unitsUsed);
             });
+
+            updateChart(labels, readings);
         });
 }
 
-function calculateBill(units) {
-    let rate = 5.50; // ₹ per kWh
-    return units * rate;
-}
-
+// Load history when USC is entered
 document.getElementById("uscNumber").addEventListener("input", function () {
     let uscNumber = this.value.trim();
     if (uscNumber.length === 10) {
