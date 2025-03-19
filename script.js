@@ -5,8 +5,9 @@ document.getElementById("meterForm").addEventListener("submit", function (event)
     let date = document.getElementById("date").value;
     let units = parseFloat(document.getElementById("units").value);
 
-    if (!uscNumber || uscNumber.length !== 10 || isNaN(uscNumber) || !date || isNaN(units)) {
-        alert("Please enter a valid 10-digit USC Number and meter reading!");
+    // Validate USC Number (8 digits)
+    if (!uscNumber || uscNumber.length !== 8 || isNaN(uscNumber) || !date || isNaN(units)) {
+        alert("Please enter a valid 8-digit USC Number and meter reading!");
         return;
     }
 
@@ -65,7 +66,7 @@ function loadUserHistory(uscNumber) {
 // Load history when USC is entered
 document.getElementById("uscNumber").addEventListener("input", function () {
     let uscNumber = this.value.trim();
-    if (uscNumber.length === 10) {
+    if (uscNumber.length === 8) { // Check for 8 digits
         loadUserHistory(uscNumber);
     }
 });
