@@ -1,28 +1,27 @@
-document.getElementById("meterForm").addEventListener("submit", function (event) {
-    event.preventDefault();
+const scriptURL = "https://script.google.com/macros/s/AKfycbzVF-vCtUEcc-6nyHFapHlmWSo3UM7vQm1-keDT7bTs/dev";
 
+function saveReading() {
+    let uscNumber = document.getElementById("uscNumber").value.trim();
     let date = document.getElementById("date").value;
     let units = parseFloat(document.getElementById("units").value);
 
-    if (!date || isNaN(units)) {
-        alert("Please enter valid data!");
+    if (!uscNumber || uscNumber.length !== 10 || isNaN(uscNumber) || !date || isNaN(units)) {
+        alert("Please enter a valid 10-digit USC Number and meter reading!");
         return;
     }
 
-    // Store data in Google Sheets
-    fetch("https://script.google.com/macros/s/AKfycbxq3LaWVD613pZuuJq8sttdU-HBf1CxLHQwMnwcGoXAnQ2Yu7GTG6j65cIhksS0SC-3mw/exec", {
+    fetch(scriptURL, {
         method: "POST",
-        body: JSON.stringify({ date, units }),
+        body: JSON.stringify({ uscNumber, date, units }),
     }).then(response => response.json())
     .then(data => {
         alert("Reading saved successfully!");
-        loadHistory();
+        loadUserHistory(uscNumber);
     });
-});
+}
 
-// Fetch and Display Data
-function loadHistory() {
-    fetch("https://script.google.com/macros/s/AKfycbxq3LaWVD613pZuuJq8sttdU-HBf1CxLHQwMnwcGoXAnQ2Yu7GTG6j65cIhksS0SC-3mw/exec")
+function loadUserHistory(uscNumber) {
+    fetch(`${scriptURL}?uscNumber=${encodeURIComponent(uscNumber)}`)
         .then(response => response.json())
         .then(data => {
             let table = document.getElementById("historyTable");
@@ -47,61 +46,17 @@ function loadHistory() {
                 labels.push(entry.date);
                 readings.push(unitsUsed);
             });
-
-            updateChart(labels, readings);
         });
 }
 
-// Bill Estimation Based on Telangana Tariff
 function calculateBill(units) {
-    let rate = 3.00; // Example rate per unit
+    let rate = 5.50; // ₹ per kWh
     return units * rate;
 }
 
-// Update Chart
-function updateChart(labels, readings) {
-    let ctx = document.getElementById("usageChart").getContext("2d");
-    new Chart(ctx, {
-        type: "line",
-        data: {
-            labels: labels,
-            datasets: [{
-                label: "Daily Usage (kWh)",
-                data: readings,
-                borderColor: "#007BFF",
-                fill: false
-            }]
-        }
-    });
-}
-
-// Load data on page load
-loadHistory();
-
-// Meter Reading Scan with OCR
-document.getElementById("scanBtn").addEventListener("click", function () {
-    let image = document.getElementById("imageUpload").files[0];
-    if (!image) {
-        alert("Please upload an image of the meter.");
-        return;
+document.getElementById("uscNumber").addEventListener("input", function () {
+    let uscNumber = this.value.trim();
+    if (uscNumber.length === 10) {
+        loadUserHistory(uscNumber);
     }
-
-    let reader = new FileReader();
-    reader.onload = function (event) {
-        let img = new Image();
-        img.src = event.target.result;
-
-        img.onload = function () {
-            Tesseract.recognize(img, "eng").then(({ data: { text } }) => {
-                let extractedReading = text.match(/\d+/g); // Extract numbers
-                if (extractedReading) {
-                    document.getElementById("units").value = extractedReading[0]; // Set in input field
-                    document.getElementById("scanResult").innerText = "Detected: " + extractedReading[0];
-                } else {
-                    alert("Could not recognize the reading. Try again.");
-                }
-            });
-        };
-    };
-    reader.readAsDataURL(image);
 });
