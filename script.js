@@ -6,30 +6,30 @@ document.getElementById("meterForm").addEventListener("submit", function (event)
     let units = parseFloat(document.getElementById("units").value);
 
     // Validate USC Number (8 digits)
-    if (!uscNumber || uscNumber.length !== 8 || isNaN(uscNumber) || !date || isNaN(units)) {
-        alert("Please enter a valid 8-digit USC Number and meter reading!");
+    if (!uscNumber || uscNumber.length !== 8 || isNaN(uscNumber)) {
+        alert("Please enter a valid 8-digit USC Number.");
         return;
     }
 
-    // Send data to Google Sheets
-    fetch("https://script.google.com/macros/s/AKfycbzVF-vCtUEcc-6nyHFapHlmWSo3UM7vQm1-keDT7bTs/dev", {
+    if (!date || isNaN(units)) {
+        alert("Please enter valid data!");
+        return;
+    }
+
+    // Store data in Google Sheets
+    fetch("https://script.google.com/macros/s/AKfycbxq3LaWVD613pZuuJq8sttdU-HBf1CxLHQwMnwcGoXAnQ2Yu7GTG6j65cIhksS0SC-3mw/exec", {
         method: "POST",
         body: JSON.stringify({ uscNumber, date, units }),
-    })
-    .then(response => response.json())
+    }).then(response => response.json())
     .then(data => {
         alert("Reading saved successfully!");
-        loadUserHistory(uscNumber);
-    })
-    .catch(error => {
-        console.error("Error:", error);
-        alert("Failed to save reading. Please try again.");
+        loadHistory(uscNumber); // Load history for the specific USC Number
     });
 });
 
-// Fetch user-specific history
-function loadUserHistory(uscNumber) {
-    fetch(`https://script.google.com/macros/s/AKfycbzVF-vCtUEcc-6nyHFapHlmWSo3UM7vQm1-keDT7bTs/dev?uscNumber=${encodeURIComponent(uscNumber)}`)
+// Fetch and Display Data for a specific USC Number
+function loadHistory(uscNumber) {
+    fetch(`https://script.google.com/macros/s/AKfycbxq3LaWVD613pZuuJq8sttdU-HBf1CxLHQwMnwcGoXAnQ2Yu7GTG6j65cIhksS0SC-3mw/exec?uscNumber=${encodeURIComponent(uscNumber)}`)
         .then(response => response.json())
         .then(data => {
             let table = document.getElementById("historyTable");
@@ -56,70 +56,64 @@ function loadUserHistory(uscNumber) {
             });
 
             updateChart(labels, readings);
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            alert("Failed to load history. Please try again.");
         });
 }
 
-// Load history when USC is entered
-document.getElementById("uscNumber").addEventListener("input", function () {
-    let uscNumber = this.value.trim();
-    if (uscNumber.length === 8) { // Check for 8 digits
-        loadUserHistory(uscNumber);
-    }
-});
-
-// Calculate the bill based on units used
-function calculateBill(unitsUsed) {
-    // Define your billing logic here
-    // Example: ₹5 per unit
-    const ratePerUnit = 5;
-    return unitsUsed * ratePerUnit;
+// Bill Estimation Based on Telangana Tariff
+function calculateBill(units) {
+    let rate = 3.00; // Example rate per unit
+    return units * rate;
 }
 
-// Update the Chart.js chart
+// Update Chart
 function updateChart(labels, readings) {
-    let ctx = document.getElementById('usageChart').getContext('2d');
-    if (window.myChart) {
-        window.myChart.destroy();
-    }
-    window.myChart = new Chart(ctx, {
-        type: 'line',
+    let ctx = document.getElementById("usageChart").getContext("2d");
+    new Chart(ctx, {
+        type: "line",
         data: {
             labels: labels,
             datasets: [{
-                label: 'Units Used',
+                label: "Daily Usage (kWh)",
                 data: readings,
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
+                borderColor: "#007BFF",
+                fill: false
             }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
         }
     });
 }
 
-// Handle image upload and scanning
-document.getElementById("scanBtn").addEventListener("click", function () {
-    let file = document.getElementById("imageUpload").files[0];
-    if (file) {
-        Tesseract.recognize(file, 'eng')
-            .then(result => {
-                document.getElementById("scanResult").innerText = "Scanned Reading: " + result.text;
-                document.getElementById("units").value = parseFloat(result.text);
-            })
-            .catch(error => {
-                console.error("Error scanning image:", error);
-                alert("Failed to scan image. Please try again.");
-            });
-    } else {
-        alert("Please upload an image first.");
+// Load data on page load (if USC Number is provided)
+document.getElementById("uscNumber").addEventListener("input", function () {
+    let uscNumber = this.value.trim();
+    if (uscNumber.length === 8) {
+        loadHistory(uscNumber);
     }
+});
+
+// Meter Reading Scan with OCR
+document.getElementById("scanBtn").addEventListener("click", function () {
+    let image = document.getElementById("imageUpload").files[0];
+    if (!image) {
+        alert("Please upload an image of the meter.");
+        return;
+    }
+
+    let reader = new FileReader();
+    reader.onload = function (event) {
+        let img = new Image();
+        img.src = event.target.result;
+
+        img.onload = function () {
+            Tesseract.recognize(img, "eng").then(({ data: { text } }) => {
+                let extractedReading = text.match(/\d+/g); // Extract numbers
+                if (extractedReading) {
+                    document.getElementById("units").value = extractedReading[0]; // Set in input field
+                    document.getElementById("scanResult").innerText = "Detected: " + extractedReading[0];
+                } else {
+                    alert("Could not recognize the reading. Try again.");
+                }
+            });
+        };
+    };
+    reader.readAsDataURL(image);
 });
