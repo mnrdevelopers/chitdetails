@@ -65,10 +65,19 @@ function calculateBill(units) {
     return units * rate;
 }
 
+let myChart = null; // Global variable to store the chart instance
+
 // Update Chart
 function updateChart(labels, readings) {
     let ctx = document.getElementById("usageChart").getContext("2d");
-    new Chart(ctx, {
+
+    // Destroy the existing chart if it exists
+    if (myChart) {
+        myChart.destroy();
+    }
+
+    // Create a new chart
+    myChart = new Chart(ctx, {
         type: "line",
         data: {
             labels: labels,
@@ -78,6 +87,13 @@ function updateChart(labels, readings) {
                 borderColor: "#007BFF",
                 fill: false
             }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
         }
     });
 }
