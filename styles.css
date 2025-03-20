@@ -1,50 +1,94 @@
+/* Professional Electricity-Themed & Mobile Responsive Design */
+
+/* Global Styles */
 body {
-    font-family: Arial, sans-serif;
-    background: #f4f4f4;
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #0a192f; /* Dark Blue Electricity Theme */
+    color: #ffffff;
     text-align: center;
-    padding: 20px;
-}
-.container {
-    max-width: 600px;
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    display: inline-block;
-}
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
-th, td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: center;
-}
-th {
-    background: #007BFF;
-    color: white;
-}
-button {
-    background: #28a745;
-    color: white;
-    padding: 10px;
-    border: none;
-    cursor: pointer;
-    margin: 5px;
-}
-button:hover {
-    background: #218838;
-}
-input {
-    width: 95%;
-    padding: 8px;
-    margin: 5px 0;
-}
-@media (max-width: 800px) {
-    .container {
-        width: 90%;
-    }
 }
 
+.container {
+    width: 90%;
+    max-width: 400px;
+    margin: auto;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(255, 255, 255, 0.2);
+    margin-top: 50px;
+}
+
+h2 {
+    color: #fbc531; /* Yellow Electricity Color */
+}
+
+/* Form Styling */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+label {
+    font-weight: bold;
+}
+
+input, button {
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+input {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    outline: none;
+}
+
+input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+button {
+    background: #fbc531;
+    color: #0a192f;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #ffa502;
+}
+
+/* Table Styling */
+table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+}
+
+thead {
+    background: #fbc531;
+    color: #0a192f;
+}
+
+td, th {
+    padding: 10px;
+    border: 1px solid #ffffff;
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+    .container {
+        width: 95%;
+        padding: 15px;
+    }
+    input, button {
+        font-size: 14px;
+    }
+}
