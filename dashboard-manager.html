@@ -171,42 +171,47 @@
         </div>
     </div>
 
-    <!-- Create Chit Fund Modal -->
-    <div class="modal fade" id="createChitModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Create New Chit Fund</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="createChitForm">
-                        <div class="mb-3">
-                            <label for="chitName" class="form-label">Chit Name *</label>
-                            <input type="text" class="form-control" id="chitName" placeholder="e.g., 1 Lakh Chit - 2024" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="totalAmount" class="form-label">Total Chit Amount *</label>
-                            <input type="number" class="form-control" id="totalAmount" placeholder="e.g., 100000" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="duration" class="form-label">Duration (Months) *</label>
-                            <input type="number" class="form-control" id="duration" placeholder="e.g., 20" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Monthly Amount per Member</label>
-                            <div class="form-control" id="monthlyAmountDisplay">₹0</div>
-                            <small class="form-text text-muted">Auto-calculated: Total Amount ÷ Duration</small>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveChitBtn">Create Chit Fund</button>
-                </div>
+  <!-- Create Chit Fund Modal (Updated) -->
+<div class="modal fade" id="createChitModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Chit Fund</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createChitForm">
+                    <div class="mb-3">
+                        <label for="chitName" class="form-label">Chit Name *</label>
+                        <input type="text" class="form-control" id="chitName" placeholder="e.g., 1 Lakh Chit - 2024" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="chitCode" class="form-label">Chit Code *</label>
+                        <input type="text" class="form-control" id="chitCode" placeholder="Auto-generated" required readonly>
+                        <small class="form-text text-muted">This code will be used by members to join</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="totalAmount" class="form-label">Total Chit Amount *</label>
+                        <input type="number" class="form-control" id="totalAmount" placeholder="e.g., 100000" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duration" class="form-label">Duration (Months) *</label>
+                        <input type="number" class="form-control" id="duration" placeholder="e.g., 20" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Monthly Amount per Member</label>
+                        <div class="form-control" id="monthlyAmountDisplay">₹0</div>
+                        <small class="form-text text-muted">Auto-calculated: Total Amount ÷ Duration</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveChitBtn">Create Chit Fund</button>
             </div>
         </div>
     </div>
+</div>
 
     <!-- Add Member Modal -->
     <div class="modal fade" id="addMemberModal" tabindex="-1">
@@ -321,6 +326,60 @@
             </div>
         </div>
     </div>
+
+    <!-- Edit Chit Fund Modal -->
+<div class="modal fade" id="editChitModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Chit Fund</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editChitForm">
+                    <input type="hidden" id="editChitId">
+                    <div class="mb-3">
+                        <label for="editChitName" class="form-label">Chit Name *</label>
+                        <input type="text" class="form-control" id="editChitName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editChitCode" class="form-label">Chit Code *</label>
+                        <input type="text" class="form-control" id="editChitCode" required readonly>
+                        <small class="form-text text-muted">Chit code cannot be changed</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTotalAmount" class="form-label">Total Amount *</label>
+                        <input type="number" class="form-control" id="editTotalAmount" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDuration" class="form-label">Duration (Months) *</label>
+                        <input type="number" class="form-control" id="editDuration" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editMonthlyAmount" class="form-label">Monthly Amount *</label>
+                        <input type="number" class="form-control" id="editMonthlyAmount" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editStartDate" class="form-label">Start Date *</label>
+                        <input type="date" class="form-control" id="editStartDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editStatus" class="form-label">Status</label>
+                        <select class="form-select" id="editStatus">
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateChitBtn">Update Chit Fund</button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
