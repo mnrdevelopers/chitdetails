@@ -854,3 +854,27 @@ async function updateChitFund() {
         setLoading(document.getElementById('updateChitBtn'), false);
     }
 }
+
+// Add event listeners for the new modals
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure these elements exist before adding listeners
+    const updateChitBtn = document.getElementById('updateChitBtn');
+    if (updateChitBtn) {
+        updateChitBtn.addEventListener('click', updateChitFund);
+    }
+    
+    // Add modal event listeners for cleanup
+    const editChitModalElement = document.getElementById('editChitModal');
+    if (editChitModalElement) {
+        editChitModalElement.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('editChitForm').reset();
+        });
+    }
+    
+    const createChitModalElement = document.getElementById('createChitModal');
+    if (createChitModalElement) {
+        createChitModalElement.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('createChitForm').reset();
+        });
+    }
+});
