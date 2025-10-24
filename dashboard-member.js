@@ -477,7 +477,41 @@ async function updateMemberStats() {
         }
     });
 
-  // Enhanced verify chit code with better error handling
+    // Render chit fund with basic info when details fail
+function renderMyChitFundWithBasicInfo(membership) {
+    const chitElement = document.createElement('div');
+    chitElement.className = 'chit-item';
+    chitElement.innerHTML = `
+        <div class="chit-header">
+            <div>
+                <h4 class="chit-name">Chit Fund (Details Unavailable)</h4>
+                <p class="chit-code">Membership ID: <strong>${membership.id}</strong></p>
+            </div>
+            <div class="chit-status-indicator">
+                <span class="badge ${membership.status === 'active' ? 'bg-success' : 'bg-secondary'}">
+                    ${membership.status}
+                </span>
+                ${membership.lifted ? '<span class="badge bg-warning ms-1">Lifted</span>' : ''}
+            </div>
+        </div>
+        
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Chit fund details are temporarily unavailable
+        </div>
+        
+        <div class="payment-summary">
+            <div class="payment-item">
+                <span>Total Paid:</span>
+                <strong>₹${membership.totalPaid?.toLocaleString() || 0}</strong>
+            </div>
+        </div>
+    `;
+    
+    myChitsList.appendChild(chitElement);
+}
+
+// Enhanced verify chit code with better error handling
 async function verifyChitCode() {
     const chitCode = document.getElementById('chitCode').value.trim().toUpperCase();
     
@@ -523,7 +557,6 @@ async function verifyChitCode() {
         document.getElementById('previewChitName').textContent = `Name: ${currentChitToJoin.name}`;
         document.getElementById('previewChitAmount').textContent = `Total Amount: ₹${currentChitToJoin.totalAmount?.toLocaleString()}`;
         document.getElementById('previewChitDuration').textContent = `Duration: ${currentChitToJoin.duration} months`;
-        document.getElementById('previewChitMembers').textContent = `Members: ${currentChitToJoin.currentMembers || 0}/${currentChitToJoin.maxMembers}`;
         
         document.getElementById('chitPreview').classList.remove('d-none');
         verifyChitBtn.classList.add('d-none');
