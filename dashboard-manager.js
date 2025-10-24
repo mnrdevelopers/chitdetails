@@ -6,6 +6,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
+      // New event listeners
+    document.getElementById('profileBtn')?.addEventListener('click', showProfile);
+    document.getElementById('editProfileBtn')?.addEventListener('click', showEditProfile);
+    document.getElementById('updateProfileBtn')?.addEventListener('click', updateProfile);
+    document.getElementById('scheduleAuctionBtn')?.addEventListener('click', showScheduleAuction);
+    document.getElementById('saveAuctionBtn')?.addEventListener('click', scheduleAuction);
+    document.getElementById('recordPaymentBtn')?.addEventListener('click', showRecordPayment);
+    document.getElementById('savePaymentBtn')?.addEventListener('click', recordPayment);
+    document.getElementById('viewReportsBtn')?.addEventListener('click', showReports);
+    document.getElementById('exportReportsBtn')?.addEventListener('click', exportReports);
+    document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFund);
+    
+    // Tab buttons
+    document.getElementById('addChitBtn')?.addEventListener('click', () => createChitModal.show());
+    document.getElementById('addNewMemberBtn')?.addEventListener('click', () => addMemberModal.show());
+});
+
     const auth = firebase.auth();
     const db = firebase.firestore();
 
@@ -32,6 +49,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const addMemberModal = new bootstrap.Modal(document.getElementById('addMemberModal'));
     const viewChitModal = new bootstrap.Modal(document.getElementById('viewChitModal'));
     const editChitModal = new bootstrap.Modal(document.getElementById('editChitModal'));
+
+    const profileModal = new bootstrap.Modal(document.getElementById('profileModal'));
+    const editProfileModal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+    const scheduleAuctionModal = new bootstrap.Modal(document.getElementById('scheduleAuctionModal'));
+    const recordPaymentModal = new bootstrap.Modal(document.getElementById('recordPaymentModal'));
+    const viewReportsModal = new bootstrap.Modal(document.getElementById('viewReportsModal'));
 
     let currentUser = null;
     let userData = null;
@@ -687,11 +710,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Update UI
-    function updateUI() {
-        if (userData) {
-            userNameElement.textContent = userData.name || 'Manager';
-        }
+   function updateUI() {
+    const userNameElement = document.getElementById('userName');
+    if (userNameElement && userData.name) {
+        userNameElement.textContent = userData.name;
     }
+}
 
     // Set loading state
     function setLoading(button, isLoading) {
@@ -948,57 +972,906 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 });
 
-// Update chit fund function (outside DOMContentLoaded but not duplicated)
+// Enhanced updateChitFund function
 async function updateChitFund() {
-    const db = firebase.firestore();
     const chitId = document.getElementById('editChitId').value;
     const name = document.getElementById('editChitName').value;
-    const totalAmount = parseFloat(document.getElementById('editTotalAmount').value);
-    const duration = parseInt(document.getElementById('editDuration').value);
+    const chitCode = document.getElementById('editChitCode').value;
+    const totalAmount = parseFloat(document.getElementById('editChitAmount').value);
+    const duration = parseInt(document.getElementById('editChitDuration').value);
     const monthlyAmount = parseFloat(document.getElementById('editMonthlyAmount').value);
+    const membersLimit = parseInt(document.getElementById('editMembersLimit').value);
     const startDate = document.getElementById('editStartDate').value;
-    const maxMembers = parseInt(document.getElementById('editMaxMembers').value);
-    const description = document.getElementById('editDescription').value;
-    const status = document.getElementById('editStatus').value;
+    const description = document.getElementById('editChitDescription').value;
 
-    if (!name || !totalAmount || !duration || !monthlyAmount || !startDate || !maxMembers) {
+    if (!name || !chitCode || !totalAmount || !duration || !monthlyAmount || !membersLimit) {
         alert('Please fill all required fields');
         return;
     }
 
     try {
-        const updateChitBtn = document.getElementById('updateChitBtn');
-        updateChitBtn.disabled = true;
-        updateChitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
+        setLoading(document.getElementById('updateChitBtn'), true);
 
         const updateData = {
             name: name,
+            chitCode: chitCode,
             totalAmount: totalAmount,
             duration: duration,
             monthlyAmount: monthlyAmount,
-            startDate: startDate,
-            maxMembers: maxMembers,
+            membersLimit: membersLimit,
             description: description,
-            status: status,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
+        if (startDate) {
+            updateData.startDate = new Date(startDate);
+        }
+
         await db.collection('chits').doc(chitId).update(updateData);
 
-        document.getElementById('editChitForm').reset();
-        bootstrap.Modal.getInstance(document.getElementById('editChitModal')).hide();
+        editChitModal.hide();
+        showSuccess('Chit fund updated successfully!');
         
-        alert('Chit fund updated successfully!');
-        
-        // Reload the page to reflect changes
-        window.location.reload();
+        await loadChits();
 
     } catch (error) {
         console.error('Error updating chit fund:', error);
         alert('Error updating chit fund: ' + error.message);
-        
-        const updateChitBtn = document.getElementById('updateChitBtn');
-        updateChitBtn.disabled = false;
-        updateChitBtn.innerHTML = 'Update Chit Fund';
+    } finally {
+        setLoading(document.getElementById('updateChitBtn'), false);
     }
+}
+
+// Profile Management Functions
+async function showProfile() {
+    try {
+        // Load profile data
+        document.getElementById('profileName').textContent = userData.name || 'Manager';
+        document.getElementById('profileEmail').textContent = userData.email || '-';
+        document.getElementById('profilePhone').textContent = userData.phone || 'Not provided';
+        document.getElementById('profileAddress').textContent = userData.address || 'Not provided';
+        document.getElementById('profileRole').textContent = userData.role || 'Manager';
+        document.getElementById('profileJoinDate').textContent = userData.createdAt ? 
+            new Date(userData.createdAt.seconds * 1000).toLocaleDateString() : 'Recently';
+
+        // Load profile statistics
+        await loadProfileStats();
+        
+        profileModal.show();
+    } catch (error) {
+        console.error('Error loading profile:', error);
+        alert('Error loading profile: ' + error.message);
+    }
+}
+
+async function loadProfileStats() {
+    try {
+        // Total chits created
+        const chitsSnapshot = await db.collection('chits')
+            .where('managerId', '==', currentUser.uid)
+            .get();
+        document.getElementById('profileTotalChits').textContent = chitsSnapshot.size;
+
+        // Active members
+        const membersSnapshot = await db.collection('members')
+            .where('managerId', '==', currentUser.uid)
+            .where('status', '==', 'active')
+            .get();
+        document.getElementById('profileActiveMembers').textContent = membersSnapshot.size;
+
+        // Total collection
+        let totalCollection = 0;
+        const paymentsSnapshot = await db.collection('payments')
+            .where('managerId', '==', currentUser.uid)
+            .get();
+        
+        paymentsSnapshot.forEach(doc => {
+            const payment = doc.data();
+            totalCollection += payment.amount || 0;
+        });
+        document.getElementById('profileTotalCollection').textContent = `₹${totalCollection.toLocaleString()}`;
+
+        // Completed auctions
+        const auctionsSnapshot = await db.collection('auctions')
+            .where('managerId', '==', currentUser.uid)
+            .where('status', '==', 'completed')
+            .get();
+        document.getElementById('profileCompletedAuctions').textContent = auctionsSnapshot.size;
+
+    } catch (error) {
+        console.error('Error loading profile stats:', error);
+    }
+}
+
+function showEditProfile() {
+    document.getElementById('editProfileName').value = userData.name || '';
+    document.getElementById('editProfileEmail').value = userData.email || '';
+    document.getElementById('editProfilePhone').value = userData.phone || '';
+    document.getElementById('editProfileAddress').value = userData.address || '';
+    
+    profileModal.hide();
+    setTimeout(() => editProfileModal.show(), 300);
+}
+
+async function updateProfile() {
+    const name = document.getElementById('editProfileName').value;
+    const phone = document.getElementById('editProfilePhone').value;
+    const address = document.getElementById('editProfileAddress').value;
+
+    if (!name) {
+        alert('Please enter your name');
+        return;
+    }
+
+    try {
+        setLoading(document.getElementById('updateProfileBtn'), true);
+
+        const updateData = {
+            name: name,
+            phone: phone,
+            address: address,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('users').doc(currentUser.uid).update(updateData);
+        
+        // Update local userData
+        userData = { ...userData, ...updateData };
+        updateUI();
+        
+        editProfileModal.hide();
+        showSuccess('Profile updated successfully!');
+        
+        // Refresh profile modal if open
+        await showProfile();
+        
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        alert('Error updating profile: ' + error.message);
+    } finally {
+        setLoading(document.getElementById('updateProfileBtn'), false);
+    }
+}
+
+// Auction Management Functions
+async function showScheduleAuction() {
+    try {
+        // Load active chits for dropdown
+        const chitsSnapshot = await db.collection('chits')
+            .where('managerId', '==', currentUser.uid)
+            .where('status', '==', 'active')
+            .get();
+        
+        const auctionChitSelect = document.getElementById('auctionChit');
+        auctionChitSelect.innerHTML = '<option value="">Choose a chit fund...</option>';
+        
+        chitsSnapshot.forEach(doc => {
+            const chit = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = `${chit.name} (${chit.chitCode})`;
+            auctionChitSelect.appendChild(option);
+        });
+        
+        // Set default date to next week
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        document.getElementById('auctionDate').value = nextWeek.toISOString().slice(0, 16);
+        
+        scheduleAuctionModal.show();
+    } catch (error) {
+        console.error('Error loading chits for auction:', error);
+        alert('Error loading chit funds: ' + error.message);
+    }
+}
+
+async function scheduleAuction() {
+    const chitId = document.getElementById('auctionChit').value;
+    const auctionDate = document.getElementById('auctionDate').value;
+    const location = document.getElementById('auctionLocation').value;
+    const minBid = parseInt(document.getElementById('auctionMinBid').value);
+    const notes = document.getElementById('auctionNotes').value;
+
+    if (!chitId || !auctionDate) {
+        alert('Please fill all required fields');
+        return;
+    }
+
+    try {
+        setLoading(document.getElementById('saveAuctionBtn'), true);
+
+        // Get chit details
+        const chitDoc = await db.collection('chits').doc(chitId).get();
+        if (!chitDoc.exists) {
+            alert('Selected chit fund not found!');
+            return;
+        }
+
+        const chit = chitDoc.data();
+        const auctionData = {
+            chitId: chitId,
+            chitName: chit.name,
+            chitCode: chit.chitCode,
+            auctionDate: new Date(auctionDate),
+            location: location,
+            minBidPercentage: minBid,
+            notes: notes,
+            managerId: currentUser.uid,
+            status: 'scheduled',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('auctions').add(auctionData);
+
+        document.getElementById('scheduleAuctionForm').reset();
+        scheduleAuctionModal.hide();
+        
+        showSuccess('Auction scheduled successfully!');
+        
+        await loadAuctions();
+
+    } catch (error) {
+        console.error('Error scheduling auction:', error);
+        alert('Error scheduling auction: ' + error.message);
+    } finally {
+        setLoading(document.getElementById('saveAuctionBtn'), false);
+    }
+}
+
+// Enhanced loadAuctions function
+async function loadAuctions() {
+    try {
+        const auctionsSnapshot = await db.collection('auctions')
+            .where('managerId', '==', currentUser.uid)
+            .orderBy('auctionDate', 'desc')
+            .get();
+        
+        const auctionsList = document.getElementById('auctionsList');
+        auctionsList.innerHTML = '';
+        
+        if (auctionsSnapshot.empty) {
+            auctionsList.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-gavel fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Auctions Scheduled</h5>
+                    <p class="text-muted">Schedule your first auction to get started</p>
+                </div>
+            `;
+            return;
+        }
+        
+        auctionsSnapshot.forEach(doc => {
+            const auction = { id: doc.id, ...doc.data() };
+            renderAuction(auction);
+        });
+        
+    } catch (error) {
+        console.error('Error loading auctions:', error);
+        auctionsList.innerHTML = `
+            <div class="alert alert-danger">
+                Error loading auctions: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderAuction(auction) {
+    const auctionsList = document.getElementById('auctionsList');
+    const auctionElement = document.createElement('div');
+    auctionElement.className = 'chit-item';
+    
+    const auctionDate = auction.auctionDate?.toDate ? auction.auctionDate.toDate() : new Date(auction.auctionDate);
+    const now = new Date();
+    const isUpcoming = auctionDate > now;
+    
+    auctionElement.innerHTML = `
+        <div class="chit-header">
+            <div>
+                <h4 class="chit-name">${auction.chitName}</h4>
+                <p class="chit-code">Code: <strong>${auction.chitCode}</strong></p>
+            </div>
+            <div class="chit-actions">
+                <span class="badge ${isUpcoming ? 'bg-warning' : 'bg-secondary'}">
+                    ${isUpcoming ? 'Upcoming' : 'Completed'}
+                </span>
+            </div>
+        </div>
+        
+        <div class="chit-details-grid">
+            <div class="detail-item">
+                <label>Auction Date:</label>
+                <span>${auctionDate.toLocaleString()}</span>
+            </div>
+            <div class="detail-item">
+                <label>Location:</label>
+                <span>${auction.location || 'Not specified'}</span>
+            </div>
+            <div class="detail-item">
+                <label>Min Bid:</label>
+                <span>${auction.minBidPercentage}%</span>
+            </div>
+            <div class="detail-item">
+                <label>Status:</label>
+                <span class="badge ${auction.status === 'scheduled' ? 'bg-primary' : 
+                                  auction.status === 'completed' ? 'bg-success' : 'bg-secondary'}">
+                    ${auction.status}
+                </span>
+            </div>
+        </div>
+        
+        ${auction.notes ? `
+            <div class="mt-2">
+                <label class="fw-bold">Notes:</label>
+                <p class="mb-0">${auction.notes}</p>
+            </div>
+        ` : ''}
+        
+        <div class="chit-footer">
+            <span class="chit-date">Scheduled: ${auctionDate.toLocaleDateString()}</span>
+            <div>
+                ${isUpcoming ? `
+                    <button class="btn btn-sm btn-success me-1 complete-auction-btn" data-auction-id="${auction.id}">
+                        <i class="fas fa-check me-1"></i>Complete
+                    </button>
+                    <button class="btn btn-sm btn-warning me-1 edit-auction-btn" data-auction-id="${auction.id}">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </button>
+                ` : ''}
+                <button class="btn btn-sm btn-danger delete-auction-btn" data-auction-id="${auction.id}">
+                    <i class="fas fa-trash me-1"></i>Delete
+                </button>
+            </div>
+        </div>
+    `;
+    
+    auctionsList.appendChild(auctionElement);
+    attachAuctionEventListeners(auctionElement, auction);
+}
+
+function attachAuctionEventListeners(element, auction) {
+    const completeBtn = element.querySelector('.complete-auction-btn');
+    const editBtn = element.querySelector('.edit-auction-btn');
+    const deleteBtn = element.querySelector('.delete-auction-btn');
+
+    if (completeBtn) {
+        completeBtn.addEventListener('click', () => completeAuction(auction.id));
+    }
+    if (editBtn) {
+        editBtn.addEventListener('click', () => editAuction(auction.id));
+    }
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => deleteAuction(auction.id));
+    }
+}
+
+async function completeAuction(auctionId) {
+    if (!confirm('Mark this auction as completed?')) return;
+
+    try {
+        await db.collection('auctions').doc(auctionId).update({
+            status: 'completed',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showSuccess('Auction marked as completed!');
+        await loadAuctions();
+    } catch (error) {
+        console.error('Error completing auction:', error);
+        alert('Error completing auction: ' + error.message);
+    }
+}
+
+async function deleteAuction(auctionId) {
+    if (!confirm('Are you sure you want to delete this auction?')) return;
+
+    try {
+        await db.collection('auctions').doc(auctionId).delete();
+        showSuccess('Auction deleted successfully!');
+        await loadAuctions();
+    } catch (error) {
+        console.error('Error deleting auction:', error);
+        alert('Error deleting auction: ' + error.message);
+    }
+}
+
+// Payment Management Functions
+async function showRecordPayment() {
+    try {
+        // Load members for dropdown
+        const membersSnapshot = await db.collection('members')
+            .where('managerId', '==', currentUser.uid)
+            .where('status', '==', 'active')
+            .get();
+        
+        const paymentMemberSelect = document.getElementById('paymentMember');
+        paymentMemberSelect.innerHTML = '<option value="">Choose a member...</option>';
+        
+        membersSnapshot.forEach(doc => {
+            const member = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = `${member.name} (${member.email})`;
+            paymentMemberSelect.appendChild(option);
+        });
+
+        // Load chits for dropdown
+        const chitsSnapshot = await db.collection('chits')
+            .where('managerId', '==', currentUser.uid)
+            .where('status', '==', 'active')
+            .get();
+        
+        const paymentChitSelect = document.getElementById('paymentChit');
+        paymentChitSelect.innerHTML = '<option value="">Choose a chit fund...</option>';
+        
+        chitsSnapshot.forEach(doc => {
+            const chit = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = `${chit.name} (${chit.chitCode})`;
+            paymentChitSelect.appendChild(option);
+        });
+
+        // Set default date to today
+        document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+        
+        recordPaymentModal.show();
+    } catch (error) {
+        console.error('Error loading data for payment:', error);
+        alert('Error loading data: ' + error.message);
+    }
+}
+
+async function recordPayment() {
+    const memberId = document.getElementById('paymentMember').value;
+    const chitId = document.getElementById('paymentChit').value;
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    const paymentDate = document.getElementById('paymentDate').value;
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    const notes = document.getElementById('paymentNotes').value;
+
+    if (!memberId || !chitId || !amount || !paymentDate) {
+        alert('Please fill all required fields');
+        return;
+    }
+
+    try {
+        setLoading(document.getElementById('savePaymentBtn'), true);
+
+        // Get member and chit details
+        const [memberDoc, chitDoc] = await Promise.all([
+            db.collection('members').doc(memberId).get(),
+            db.collection('chits').doc(chitId).get()
+        ]);
+
+        if (!memberDoc.exists || !chitDoc.exists) {
+            alert('Member or chit fund not found!');
+            return;
+        }
+
+        const member = memberDoc.data();
+        const chit = chitDoc.data();
+
+        const paymentData = {
+            memberId: memberId,
+            memberName: member.name,
+            chitId: chitId,
+            chitName: chit.name,
+            chitCode: chit.chitCode,
+            amount: amount,
+            paymentDate: paymentDate,
+            paymentMethod: paymentMethod,
+            notes: notes,
+            managerId: currentUser.uid,
+            status: 'completed',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('payments').add(paymentData);
+
+        // Update member's total paid
+        const newTotalPaid = (member.totalPaid || 0) + amount;
+        await db.collection('members').doc(memberId).update({
+            totalPaid: newTotalPaid,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        document.getElementById('recordPaymentForm').reset();
+        recordPaymentModal.hide();
+        
+        showSuccess('Payment recorded successfully!');
+        
+        await loadPayments();
+        await updateStats();
+
+    } catch (error) {
+        console.error('Error recording payment:', error);
+        alert('Error recording payment: ' + error.message);
+    } finally {
+        setLoading(document.getElementById('savePaymentBtn'), false);
+    }
+}
+
+// Enhanced loadPayments function
+async function loadPayments() {
+    try {
+        const paymentsSnapshot = await db.collection('payments')
+            .where('managerId', '==', currentUser.uid)
+            .orderBy('paymentDate', 'desc')
+            .get();
+        
+        const paymentsList = document.getElementById('paymentsList');
+        paymentsList.innerHTML = '';
+        
+        if (paymentsSnapshot.empty) {
+            paymentsList.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Payments Recorded</h5>
+                    <p class="text-muted">Record payments from members</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let totalAmount = 0;
+        paymentsSnapshot.forEach(doc => {
+            const payment = { id: doc.id, ...doc.data() };
+            totalAmount += payment.amount || 0;
+            renderPayment(payment);
+        });
+
+        // Update payment summary
+        const summaryHTML = `
+            <div class="row mb-4">
+                <div class="col-md-3 col-6">
+                    <div class="summary-card text-success">
+                        <i class="fas fa-rupee-sign"></i>
+                        <span>Total Collected</span>
+                        <strong>₹${totalAmount.toLocaleString()}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="summary-card text-primary">
+                        <i class="fas fa-receipt"></i>
+                        <span>Total Payments</span>
+                        <strong>${paymentsSnapshot.size}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="summary-card text-info">
+                        <i class="fas fa-users"></i>
+                        <span>Active Payers</span>
+                        <strong>${new Set(paymentsSnapshot.docs.map(doc => doc.data().memberId)).size}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="summary-card text-warning">
+                        <i class="fas fa-file-contract"></i>
+                        <span>Active Chits</span>
+                        <strong>${new Set(paymentsSnapshot.docs.map(doc => doc.data().chitId)).size}</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        paymentsList.innerHTML = summaryHTML + paymentsList.innerHTML;
+        
+    } catch (error) {
+        console.error('Error loading payments:', error);
+        paymentsList.innerHTML = `
+            <div class="alert alert-danger">
+                Error loading payments: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderPayment(payment) {
+    const paymentsList = document.getElementById('paymentsList');
+    const paymentElement = document.createElement('div');
+    paymentElement.className = 'payment-item';
+    
+    paymentElement.innerHTML = `
+        <div class="payment-header">
+            <div>
+                <h6 class="payment-chit mb-1">${payment.chitName}</h6>
+                <p class="mb-0 text-muted small">Paid by: ${payment.memberName}</p>
+            </div>
+            <div class="payment-amount">
+                <strong class="text-success">₹${payment.amount?.toLocaleString()}</strong>
+            </div>
+        </div>
+        <div class="payment-details">
+            <span><i class="fas fa-calendar me-1"></i>${payment.paymentDate}</span>
+            <span><i class="fas fa-wallet me-1"></i>${payment.paymentMethod}</span>
+            <span class="badge bg-success">${payment.status}</span>
+        </div>
+        ${payment.notes ? `<p class="mt-2 mb-0 small text-muted">${payment.notes}</p>` : ''}
+    `;
+    
+    paymentsList.appendChild(paymentElement);
+}
+
+// Reports Functions
+async function showReports() {
+    try {
+        await loadFinancialReports();
+        await loadMembersReport();
+        await loadChitsReport();
+        
+        viewReportsModal.show();
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        alert('Error loading reports: ' + error.message);
+    }
+}
+
+async function loadFinancialReports() {
+    try {
+        const financialReports = document.getElementById('financialReports');
+        
+        // Get total collections
+        let totalCollections = 0;
+        const paymentsSnapshot = await db.collection('payments')
+            .where('managerId', '==', currentUser.uid)
+            .get();
+        
+        paymentsSnapshot.forEach(doc => {
+            totalCollections += doc.data().amount || 0;
+        });
+
+        // Get pending amounts (simplified calculation)
+        const chitsSnapshot = await db.collection('chits')
+            .where('managerId', '==', currentUser.uid)
+            .get();
+        
+        let totalExpected = 0;
+        chitsSnapshot.forEach(doc => {
+            const chit = doc.data();
+            totalExpected += chit.totalAmount || 0;
+        });
+
+        const pendingAmount = Math.max(0, totalExpected - totalCollections);
+
+        financialReports.innerHTML = `
+            <div class="col-md-6 mb-4">
+                <div class="card border-success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title text-success">Total Collections</h6>
+                                <h3 class="text-success">₹${totalCollections.toLocaleString()}</h3>
+                            </div>
+                            <i class="fas fa-money-bill-wave fa-2x text-success"></i>
+                        </div>
+                        <p class="small text-muted mb-0">Total amount collected from all chits</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card border-warning">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title text-warning">Pending Collections</h6>
+                                <h3 class="text-warning">₹${pendingAmount.toLocaleString()}</h3>
+                            </div>
+                            <i class="fas fa-clock fa-2x text-warning"></i>
+                        </div>
+                        <p class="small text-muted mb-0">Amount yet to be collected</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card border-primary">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title text-primary">Active Chits</h6>
+                                <h3 class="text-primary">${chitsSnapshot.size}</h3>
+                            </div>
+                            <i class="fas fa-file-contract fa-2x text-primary"></i>
+                        </div>
+                        <p class="small text-muted mb-0">Total active chit funds</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card border-info">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title text-info">Total Members</h6>
+                                <h3 class="text-info">${(await db.collection('members').where('managerId', '==', currentUser.uid).get()).size}</h3>
+                            </div>
+                            <i class="fas fa-users fa-2x text-info"></i>
+                        </div>
+                        <p class="small text-muted mb-0">Registered members across all chits</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading financial reports:', error);
+        document.getElementById('financialReports').innerHTML = `
+            <div class="alert alert-danger">Error loading financial reports: ${error.message}</div>
+        `;
+    }
+}
+
+async function loadMembersReport() {
+    try {
+        const membersReport = document.getElementById('membersReport');
+        const membersSnapshot = await db.collection('members')
+            .where('managerId', '==', currentUser.uid)
+            .get();
+        
+        if (membersSnapshot.empty) {
+            membersReport.innerHTML = '<p class="text-muted">No members found</p>';
+            return;
+        }
+
+        let reportHTML = `
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Total Paid</th>
+                            <th>Status</th>
+                            <th>Join Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        membersSnapshot.forEach(doc => {
+            const member = doc.data();
+            const joinDate = member.createdAt?.toDate ? member.createdAt.toDate().toLocaleDateString() : 'Recently';
+            
+            reportHTML += `
+                <tr>
+                    <td>${member.name}</td>
+                    <td>${member.email}</td>
+                    <td>${member.phone || '-'}</td>
+                    <td>₹${(member.totalPaid || 0).toLocaleString()}</td>
+                    <td><span class="badge ${member.status === 'active' ? 'bg-success' : 'bg-secondary'}">${member.status}</span></td>
+                    <td>${joinDate}</td>
+                </tr>
+            `;
+        });
+
+        reportHTML += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        membersReport.innerHTML = reportHTML;
+    } catch (error) {
+        console.error('Error loading members report:', error);
+        document.getElementById('membersReport').innerHTML = `
+            <div class="alert alert-danger">Error loading members report: ${error.message}</div>
+        `;
+    }
+}
+
+async function loadChitsReport() {
+    try {
+        const chitsReport = document.getElementById('chitsReport');
+        const chitsSnapshot = await db.collection('chits')
+            .where('managerId', '==', currentUser.uid)
+            .get();
+        
+        if (chitsSnapshot.empty) {
+            chitsReport.innerHTML = '<p class="text-muted">No chit funds found</p>';
+            return;
+        }
+
+        let reportHTML = `
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Chit Name</th>
+                            <th>Code</th>
+                            <th>Total Amount</th>
+                            <th>Members</th>
+                            <th>Status</th>
+                            <th>Start Date</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        for (const doc of chitsSnapshot.docs) {
+            const chit = doc.data();
+            
+            // Count members in this chit
+            const membersCount = await db.collection('members')
+                .where('chitIds', 'array-contains', doc.id)
+                .get();
+            
+            const startDate = chit.startDate?.toDate ? chit.startDate.toDate().toLocaleDateString() : 'Not set';
+            
+            reportHTML += `
+                <tr>
+                    <td>${chit.name}</td>
+                    <td>${chit.chitCode}</td>
+                    <td>₹${(chit.totalAmount || 0).toLocaleString()}</td>
+                    <td>${membersCount.size}</td>
+                    <td><span class="badge ${chit.status === 'active' ? 'bg-success' : 'bg-secondary'}">${chit.status}</span></td>
+                    <td>${startDate}</td>
+                    <td>${chit.duration || 0} months</td>
+                </tr>
+            `;
+        }
+
+        reportHTML += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        chitsReport.innerHTML = reportHTML;
+    } catch (error) {
+        console.error('Error loading chits report:', error);
+        document.getElementById('chitsReport').innerHTML = `
+            <div class="alert alert-danger">Error loading chits report: ${error.message}</div>
+        `;
+    }
+}
+
+function exportReports() {
+    // Simple CSV export implementation
+    const financialData = document.querySelector('#financialReports');
+    const membersData = document.querySelector('#membersReport table');
+    const chitsData = document.querySelector('#chitsReport table');
+    
+    let csvContent = "Chit Fund Manager Reports\n\n";
+    
+    // Add financial summary
+    csvContent += "FINANCIAL SUMMARY\n";
+    csvContent += "Total Collections," + document.querySelector('#financialReports .text-success h3')?.textContent + "\n";
+    csvContent += "Pending Collections," + document.querySelector('#financialReports .text-warning h3')?.textContent + "\n";
+    csvContent += "Active Chits," + document.querySelector('#financialReports .text-primary h3')?.textContent + "\n";
+    csvContent += "Total Members," + document.querySelector('#financialReports .text-info h3')?.textContent + "\n\n";
+    
+    // Export as CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chit-manager-reports-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showSuccess('Reports exported successfully!');
+}
+
+// Utility function to show success messages
+function showSuccess(message) {
+    // Create and show a success toast/alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <strong>Success!</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
 }
