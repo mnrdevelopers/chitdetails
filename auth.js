@@ -254,49 +254,49 @@ function resetForms() {
         });
     });
 
-    // Confirm role and complete registration
-    confirmRoleBtn.addEventListener('click', async () => {
-        if (!selectedRole || !tempUserData) {
-            showMessage(roleSelectionMessage, 'Please select a role to continue.', 'error');
-            return;
-        }
+  // Confirm role and complete registration - ENHANCED VERSION
+confirmRoleBtn.addEventListener('click', async () => {
+    if (!selectedRole || !tempUserData) {
+        showMessage(roleSelectionMessage, 'Please select a role to continue.', 'error');
+        return;
+    }
 
-        try {
-            setLoading(confirmRoleBtn, true);
+    try {
+        setLoading(confirmRoleBtn, true);
 
-            // Complete user registration with role
-            const userData = {
-                uid: tempUserData.uid,
-                name: tempUserData.name,
-                email: tempUserData.email,
-                role: selectedRole,
-                memberSince: selectedRole === 'member' ? firebase.firestore.FieldValue.serverTimestamp() : null,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                activeChits: 0,
-                totalInvestment: 0,
-                returnsReceived: 0,
-                creditScore: 'Good',
-                phone: '',
-                address: ''
-            };
+        // Complete user registration with role
+        const userData = {
+            uid: tempUserData.uid,
+            name: tempUserData.name,
+            email: tempUserData.email,
+            role: selectedRole,
+            memberSince: selectedRole === 'member' ? firebase.firestore.FieldValue.serverTimestamp() : null,
+            managerSince: selectedRole === 'manager' ? firebase.firestore.FieldValue.serverTimestamp() : null,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            activeChits: 0,
+            totalInvestment: 0,
+            returnsReceived: 0,
+            creditScore: 'Good'
+        };
 
-            await db.collection('users').doc(tempUserData.uid).set(userData);
+        await db.collection('users').doc(tempUserData.uid).set(userData, { merge: true });
 
-            showMessage(roleSelectionMessage, `Registration successful! Welcome as ${selectedRole === 'manager' ? 'Manager' : 'Member'}.`, 'success');
+        showMessage(roleSelectionMessage, `Registration successful! Welcome as ${selectedRole === 'manager' ? 'Manager' : 'Member'}.`, 'success');
 
-            // Redirect based on role
-            setTimeout(() => {
-                const redirectUrl = selectedRole === 'manager' ? 'dashboard-manager.html' : 'dashboard-member.html';
-                window.location.href = redirectUrl;
-            }, 2000);
+        // Redirect based on role after successful role assignment
+        setTimeout(() => {
+            const redirectUrl = selectedRole === 'manager' ? 'dashboard-manager.html' : 'dashboard-member.html';
+            window.location.href = redirectUrl;
+        }, 2000);
 
-        } catch (error) {
-            console.error('Error completing registration:', error);
-            showMessage(roleSelectionMessage, 'Error completing registration: ' + error.message, 'error');
-        } finally {
-            setLoading(confirmRoleBtn, false);
-        }
-    });
+    } catch (error) {
+        console.error('Error completing registration:', error);
+        showMessage(roleSelectionMessage, 'Error completing registration: ' + error.message, 'error');
+    } finally {
+        setLoading(confirmRoleBtn, false);
+    }
+});
 
     // Register form submission
     registerFormElement.addEventListener('submit', async (e) => {
@@ -380,114 +380,137 @@ function resetForms() {
         }
     });
 
-    // Login form submission
-    loginFormElement.addEventListener('submit', async (e) => {
-        e.preventDefault();
+   // Login form submission - ENHANCED VERSION
+loginFormElement.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const submitButton = loginFormElement.querySelector('.btn-auth');
+    
+    // Basic validation
+    if (!email || !password) {
+        showMessage(loginMessage, 'Please fill in all fields.', 'error');
+        return;
+    }
+    
+    if (!isValidEmail(email)) {
+        showMessage(loginMessage, 'Please enter a valid email address.', 'error');
+        return;
+    }
+    
+    setLoading(submitButton, true);
+    
+    try {
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
         
-        const email = document.getElementById('loginEmail').value.trim();
-        const password = document.getElementById('loginPassword').value;
-        const submitButton = loginFormElement.querySelector('.btn-auth');
+        // Get user data from Firestore
+        const userDoc = await db.collection('users').doc(user.uid).get();
         
-        // Basic validation
-        if (!email || !password) {
-            showMessage(loginMessage, 'Please fill in all fields.', 'error');
-            return;
-        }
-        
-        if (!isValidEmail(email)) {
-            showMessage(loginMessage, 'Please enter a valid email address.', 'error');
-            return;
-        }
-        
-        setLoading(submitButton, true);
-        
-        try {
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
-            const user = userCredential.user;
+        if (userDoc.exists) {
+            const userData = userDoc.data();
             
-            // Get user role from Firestore
+            // Check if user has selected a role
+            if (!userData.role) {
+                // User exists but no role selected - redirect to role selection
+                showMessage(loginMessage, 'Please complete your registration by selecting a role.', 'success');
+                
+                // Store temp data and show role selection
+                tempUserData = {
+                    uid: user.uid,
+                    name: userData.name || user.displayName || user.email.split('@')[0],
+                    email: user.email
+                };
+                
+                setTimeout(() => {
+                    switchToForm('roleSelection');
+                    initializeProgress();
+                    updateProgress(2);
+                }, 1500);
+                
+            } else {
+                // User has a role, redirect to appropriate dashboard
+                showMessage(loginMessage, `Login successful! Redirecting to ${userData.role} dashboard...`, 'success');
+                
+                setTimeout(() => {
+                    const redirectUrl = userData.role === 'manager' ? 'dashboard-manager.html' : 'dashboard-member.html';
+                    window.location.href = redirectUrl;
+                }, 1500);
+            }
+        } else {
+            // User document doesn't exist - this shouldn't happen but handle it
+            showMessage(loginMessage, 'Account setup incomplete. Please contact support.', 'error');
+            // Optionally, sign them out to restart the process
+            await auth.signOut();
+        }
+        
+    } catch (error) {
+        console.error('Login error:', error);
+        let errorMessage = 'An error occurred during login. Please try again.';
+        
+        switch (error.code) {
+            case 'auth/user-not-found':
+                errorMessage = 'No account found with this email address.';
+                break;
+            case 'auth/wrong-password':
+                errorMessage = 'Incorrect password. Please try again.';
+                break;
+            case 'auth/invalid-email':
+                errorMessage = 'Invalid email address format.';
+                break;
+            case 'auth/too-many-requests':
+                errorMessage = 'Too many failed attempts. Please try again later.';
+                break;
+            case 'auth/user-disabled':
+                errorMessage = 'This account has been disabled.';
+                break;
+        }
+        
+        showMessage(loginMessage, errorMessage, 'error');
+    } finally {
+        setLoading(submitButton, false);
+    }
+});
+
+  // Check if user is already logged in - CORRECTED VERSION
+auth.onAuthStateChanged(async (user) => {
+    if (user && window.location.pathname.includes('auth.html')) {
+        // User is logged in and on auth page, check if they have completed role selection
+        try {
             const userDoc = await db.collection('users').doc(user.uid).get();
             
             if (userDoc.exists) {
                 const userData = userDoc.data();
-                const userRole = userData.role || 'member';
-                
-                showMessage(loginMessage, `Login successful! Redirecting to ${userRole} dashboard...`, 'success');
-                
-                // Redirect based on role
-                setTimeout(() => {
-                    const redirectUrl = userRole === 'manager' ? 'dashboard-manager.html' : 'dashboard-member.html';
-                    window.location.href = redirectUrl;
-                }, 1500);
-            } else {
-                // User document doesn't exist, create one with member role
-                await db.collection('users').doc(user.uid).set({
-                    name: user.displayName || user.email.split('@')[0],
-                    email: user.email,
-                    role: 'member',
-                    memberSince: firebase.firestore.FieldValue.serverTimestamp(),
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    activeChits: 0,
-                    totalInvestment: 0,
-                    returnsReceived: 0,
-                    creditScore: 'Good'
-                });
-                
-                showMessage(loginMessage, 'Login successful! Redirecting to member dashboard...', 'success');
-                setTimeout(() => {
-                    window.location.href = 'dashboard-member.html';
-                }, 1500);
-            }
-            
-        } catch (error) {
-            console.error('Login error:', error);
-            let errorMessage = 'An error occurred during login. Please try again.';
-            
-            switch (error.code) {
-                case 'auth/user-not-found':
-                    errorMessage = 'No account found with this email address.';
-                    break;
-                case 'auth/wrong-password':
-                    errorMessage = 'Incorrect password. Please try again.';
-                    break;
-                case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address format.';
-                    break;
-                case 'auth/too-many-requests':
-                    errorMessage = 'Too many failed attempts. Please try again later.';
-                    break;
-                case 'auth/user-disabled':
-                    errorMessage = 'This account has been disabled.';
-                    break;
-            }
-            
-            showMessage(loginMessage, errorMessage, 'error');
-        } finally {
-            setLoading(submitButton, false);
-        }
-    });
-
-    // Check if user is already logged in
-    auth.onAuthStateChanged(async (user) => {
-        if (user && window.location.pathname.includes('auth.html')) {
-            // User is logged in and on auth page, redirect based on role
-            try {
-                const userDoc = await db.collection('users').doc(user.uid).get();
-                if (userDoc.exists) {
-                    const userData = userDoc.data();
+                // Check if user has selected a role
+                if (userData.role) {
+                    // User has a role, redirect to appropriate dashboard
                     const redirectUrl = userData.role === 'manager' ? 'dashboard-manager.html' : 'dashboard-member.html';
                     window.location.href = redirectUrl;
                 } else {
-                    // User document doesn't exist, redirect to member dashboard
-                    window.location.href = 'dashboard-member.html';
+                    // User exists but no role selected, show role selection
+                    tempUserData = {
+                        uid: user.uid,
+                        name: userData.name || user.displayName || user.email.split('@')[0],
+                        email: user.email
+                    };
+                    switchToForm('roleSelection');
+                    initializeProgress();
+                    updateProgress(2); // Show they're at role selection step
                 }
-            } catch (error) {
-                console.error('Error checking user role:', error);
-                window.location.href = 'dashboard-member.html';
+            } else {
+                // User document doesn't exist, they need to complete registration
+                // Keep them on auth page to complete the process
+                console.log('User document not found, requiring complete registration');
+                // Don't redirect - let them complete registration
             }
+        } catch (error) {
+            console.error('Error checking user role:', error);
+            // Don't redirect on error - keep user on auth page
         }
-    });
-
+    }
+});
+    
     // Add input animations
     document.querySelectorAll('.form-control').forEach(input => {
         input.addEventListener('focus', function() {
@@ -503,3 +526,30 @@ function resetForms() {
 
     console.log('Auth page initialized successfully with role selection');
 });
+
+// Helper function to ensure user has completed registration
+async function ensureUserRegistrationComplete(user) {
+    try {
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+            // Create basic user document
+            const userData = {
+                name: user.displayName || user.email.split('@')[0],
+                email: user.email,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                // Note: role is intentionally missing - user needs to select it
+            };
+            await db.collection('users').doc(user.uid).set(userData);
+            return false; // Registration not complete
+        }
+        
+        const userData = userDoc.data();
+        return !!userData.role; // Return true if role exists
+        
+    } catch (error) {
+        console.error('Error checking registration completion:', error);
+        return false;
+    }
+}
