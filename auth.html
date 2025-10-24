@@ -3,79 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChitFund Pro | Authentication</title>
+    <title>ChitFund Pro | Secure Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="auth.css">
 </head>
 <body>
+    <!-- Background Animation -->
+    <div class="background-animation">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
     <div class="auth-container">
-        <div class="auth-card">
+        <!-- Header Logo -->
+        <div class="auth-header-logo">
+            <div class="logo-container">
+                <i class="fas fa-hand-holding-usd logo-icon"></i>
+                <h1>ChitFund Pro</h1>
+                <p class="tagline">Professional Chit Fund Management</p>
+            </div>
+        </div>
+
+        <div class="auth-card-container">
             <!-- Login Form -->
-            <div id="loginForm" class="auth-form active">
-                <div class="auth-header">
+            <div id="loginForm" class="auth-card active">
+                <div class="card-header">
                     <h2>Welcome Back</h2>
-                    <p>Sign in to your ChitFund Pro account</p>
+                    <p>Sign in to continue managing your chit funds</p>
                 </div>
                 
-                <form id="loginFormElement">
-                    <div class="form-group">
-                        <label for="loginEmail">Email</label>
-                        <input type="email" id="loginEmail" class="form-control" required>
+                <form id="loginFormElement" class="auth-form">
+                    <div class="input-group">
+                        <div class="input-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <input type="email" id="loginEmail" class="form-control" placeholder="Enter your email" required>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="loginPassword">Password</label>
-                        <input type="password" id="loginPassword" class="form-control" required>
+                    <div class="input-group">
+                        <div class="input-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password" required>
+                        <button type="button" class="password-toggle" id="loginPasswordToggle">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <div class="form-options">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberMe">
+                            <label class="form-check-label" for="rememberMe">Remember me</label>
+                        </div>
+                        <a href="#" class="forgot-password">Forgot Password?</a>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary btn-auth">Sign In</button>
+                    <button type="submit" class="btn btn-primary btn-auth">
+                        <span class="btn-text">Sign In</span>
+                        <div class="btn-loader d-none">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </button>
                 </form>
                 
-                <div class="auth-footer">
-                    <p>Don't have an account? <a href="#" id="showRegister">Sign Up</a></p>
+                <div class="auth-divider">
+                    <span>Or continue with</span>
+                </div>
+
+                <div class="social-auth">
+                    <button class="btn btn-social btn-google">
+                        <i class="fab fa-google"></i>
+                        Google
+                    </button>
+                    <button class="btn btn-social btn-facebook">
+                        <i class="fab fa-facebook-f"></i>
+                        Facebook
+                    </button>
                 </div>
                 
-                <div id="loginMessage" class="alert d-none"></div>
+                <div class="auth-footer">
+                    <p>Don't have an account? <a href="#" id="showRegister" class="auth-link">Create Account</a></p>
+                </div>
+                
+                <div id="loginMessage" class="alert-message d-none"></div>
             </div>
 
             <!-- Register Form -->
-            <div id="registerForm" class="auth-form">
-                <div class="auth-header">
-                    <h2>Create Account</h2>
-                    <p>Join ChitFund Pro today</p>
+            <div id="registerForm" class="auth-card">
+                <div class="card-header">
+                    <h2>Join ChitFund Pro</h2>
+                    <p>Create your account to get started</p>
                 </div>
                 
-                <form id="registerFormElement">
-                    <div class="form-group">
-                        <label for="registerName">Full Name</label>
-                        <input type="text" id="registerName" class="form-control" required>
+                <form id="registerFormElement" class="auth-form">
+                    <div class="input-group">
+                        <div class="input-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <input type="text" id="registerName" class="form-control" placeholder="Full name" required>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="registerEmail">Email</label>
-                        <input type="email" id="registerEmail" class="form-control" required>
+                    <div class="input-group">
+                        <div class="input-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <input type="email" id="registerEmail" class="form-control" placeholder="Email address" required>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="registerPassword">Password</label>
-                        <input type="password" id="registerPassword" class="form-control" required>
+                    <div class="input-group">
+                        <div class="input-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <input type="password" id="registerPassword" class="form-control" placeholder="Create password" required>
+                        <button type="button" class="password-toggle" id="registerPasswordToggle">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="registerConfirmPassword">Confirm Password</label>
-                        <input type="password" id="registerConfirmPassword" class="form-control" required>
+                    <div class="input-group">
+                        <div class="input-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <input type="password" id="registerConfirmPassword" class="form-control" placeholder="Confirm password" required>
+                        <button type="button" class="password-toggle" id="registerConfirmPasswordToggle">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <div class="form-check terms-check">
+                        <input type="checkbox" class="form-check-input" id="acceptTerms" required>
+                        <label class="form-check-label" for="acceptTerms">
+                            I agree to the <a href="#" class="terms-link">Terms of Service</a> and <a href="#" class="terms-link">Privacy Policy</a>
+                        </label>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary btn-auth">Create Account</button>
+                    <button type="submit" class="btn btn-primary btn-auth">
+                        <span class="btn-text">Create Account</span>
+                        <div class="btn-loader d-none">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </button>
                 </form>
                 
-                <div class="auth-footer">
-                    <p>Already have an account? <a href="#" id="showLogin">Sign In</a></p>
+                <div class="auth-divider">
+                    <span>Or sign up with</span>
+                </div>
+
+                <div class="social-auth">
+                    <button class="btn btn-social btn-google">
+                        <i class="fab fa-google"></i>
+                        Google
+                    </button>
+                    <button class="btn btn-social btn-facebook">
+                        <i class="fab fa-facebook-f"></i>
+                        Facebook
+                    </button>
                 </div>
                 
-                <div id="registerMessage" class="alert d-none"></div>
+                <div class="auth-footer">
+                    <p>Already have an account? <a href="#" id="showLogin" class="auth-link">Sign In</a></p>
+                </div>
+                
+                <div id="registerMessage" class="alert-message d-none"></div>
             </div>
+        </div>
+
+        <!-- Security Badge -->
+        <div class="security-badge">
+            <i class="fas fa-shield-alt"></i>
+            <span>Bank-level Security</span>
         </div>
     </div>
 
