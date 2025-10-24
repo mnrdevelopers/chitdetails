@@ -100,51 +100,60 @@ document.addEventListener('DOMContentLoaded', function() {
         updateProfileInfo();
     }
 
-    // Load member's chit funds
-    async function loadMyChitFunds() {
-        try {
-            // Get chit funds where member is participating
-            const membershipsSnapshot = await db.collection('chitMemberships')
-                .where('memberId', '==', currentUser.uid)
-                .get();
-            
-            myChitsList.innerHTML = '';
-            
-            if (membershipsSnapshot.empty) {
-                myChitsList.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="fas fa-file-contract fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">No Chit Funds Joined</h5>
-                        <p class="text-muted">Join a chit fund to start investing</p>
-                        <button class="btn btn-primary mt-3" onclick="openJoinChitModal()">
-                            <i class="fas fa-plus me-2"></i>Join Your First Chit Fund
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-            
-            const chitIds = membershipsSnapshot.docs.map(doc => doc.data().chitId);
-            
-            // Get chit details
-            for (const chitId of chitIds) {
+  // Load member's chit funds with enhanced error handling
+async function loadMyChitFunds() {
+    try {
+        // Get chit funds where member is participating
+        const membershipsSnapshot = await db.collection('chitMemberships')
+            .where('memberId', '==', currentUser.uid)
+            .get();
+        
+        myChitsList.innerHTML = '';
+        
+        if (membershipsSnapshot.empty) {
+            myChitsList.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-file-contract fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Chit Funds Joined</h5>
+                    <p class="text-muted">Join a chit fund to start investing</p>
+                    <button class="btn btn-primary mt-3" onclick="openJoinChitModal()">
+                        <i class="fas fa-plus me-2"></i>Join Your First Chit Fund
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        const chitIds = membershipsSnapshot.docs.map(doc => doc.data().chitId);
+        
+        // Get chit details
+        for (const chitId of chitIds) {
+            try {
                 const chitDoc = await db.collection('chits').doc(chitId).get();
                 if (chitDoc.exists) {
                     const chit = { id: chitDoc.id, ...chitDoc.data() };
                     const membership = membershipsSnapshot.docs.find(doc => doc.data().chitId === chitId).data();
                     renderMyChitFund(chit, membership);
                 }
+            } catch (chitError) {
+                console.warn(`Error loading chit ${chitId}:`, chitError);
+                // Render with basic info even if chit details fail
+                const membership = membershipsSnapshot.docs.find(doc => doc.data().chitId === chitId).data();
+                renderMyChitFundWithBasicInfo(membership);
             }
-            
-        } catch (error) {
-            console.error('Error loading my chit funds:', error);
-            myChitsList.innerHTML = `
-                <div class="alert alert-danger">
-                    Error loading chit funds: ${error.message}
-                </div>
-            `;
         }
+        
+    } catch (error) {
+        console.error('Error loading my chit funds:', error);
+        myChitsList.innerHTML = `
+            <div class="alert alert-danger">
+                Error loading chit funds: ${error.message}
+                <br><small>Please refresh the page or try again later.</small>
+            </div>
+        `;
     }
+}
+
 
     // Render member's chit fund
     function renderMyChitFund(chit, membership) {
@@ -224,53 +233,59 @@ document.addEventListener('DOMContentLoaded', function() {
         attachMyChitEventListeners(chitElement, chit, membership);
     }
 
-    // Load payment history
-    async function loadPaymentHistory() {
-        try {
-            const paymentsSnapshot = await db.collection('payments')
-                .where('memberId', '==', currentUser.uid)
-                .orderBy('paymentDate', 'desc')
-                .get();
-            
-            paymentsHistory.innerHTML = '';
-            
-            if (paymentsSnapshot.empty) {
-                paymentsHistory.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">No Payment History</h5>
-                        <p class="text-muted">Your payment history will appear here</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            let totalPaid = 0;
-            let totalPending = 0;
-            let totalOverdue = 0;
-            
-            paymentsSnapshot.forEach(doc => {
-                const payment = { id: doc.id, ...doc.data() };
-                renderPayment(payment);
-                
-                if (payment.status === 'paid') {
-                    totalPaid += payment.amount;
-                } else if (payment.status === 'pending') {
-                    totalPending += payment.amount;
-                } else if (payment.status === 'overdue') {
-                    totalOverdue += payment.amount;
-                }
-            });
-            
-            // Update summary
-            document.getElementById('totalPaidAmount').textContent = `₹${totalPaid.toLocaleString()}`;
-            document.getElementById('totalPendingAmount').textContent = `₹${totalPending.toLocaleString()}`;
-            document.getElementById('totalOverdueAmount').textContent = `₹${totalOverdue.toLocaleString()}`;
-            
-        } catch (error) {
-            console.error('Error loading payment history:', error);
+  // Enhanced payment history loading
+async function loadPaymentHistory() {
+    try {
+        const paymentsSnapshot = await db.collection('payments')
+            .where('memberId', '==', currentUser.uid)
+            .orderBy('paymentDate', 'desc')
+            .get();
+        
+        paymentsHistory.innerHTML = '';
+        
+        if (paymentsSnapshot.empty) {
+            paymentsHistory.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Payment History</h5>
+                    <p class="text-muted">Your payment history will appear here</p>
+                </div>
+            `;
+            return;
         }
+        
+        let totalPaid = 0;
+        let totalPending = 0;
+        let totalOverdue = 0;
+        
+        paymentsSnapshot.forEach(doc => {
+            const payment = { id: doc.id, ...doc.data() };
+            renderPayment(payment);
+            
+            if (payment.status === 'paid') {
+                totalPaid += payment.amount;
+            } else if (payment.status === 'pending') {
+                totalPending += payment.amount;
+            } else if (payment.status === 'overdue') {
+                totalOverdue += payment.amount;
+            }
+        });
+        
+        // Update summary
+        document.getElementById('totalPaidAmount').textContent = `₹${totalPaid.toLocaleString()}`;
+        document.getElementById('totalPendingAmount').textContent = `₹${totalPending.toLocaleString()}`;
+        document.getElementById('totalOverdueAmount').textContent = `₹${totalOverdue.toLocaleString()}`;
+        
+    } catch (error) {
+        console.error('Error loading payment history:', error);
+        paymentsHistory.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Unable to load payment history: ${error.message}
+            </div>
+        `;
     }
+}
 
     // Render payment
     function renderPayment(payment) {
@@ -310,46 +325,73 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    // Update member statistics
-    async function updateMemberStats() {
+ // Enhanced member stats with error handling
+async function updateMemberStats() {
+    try {
+        // Count member's chit funds
+        let activeChitsCount = 0;
         try {
-            // Count member's chit funds
             const membershipsSnapshot = await db.collection('chitMemberships')
                 .where('memberId', '==', currentUser.uid)
                 .where('status', '==', 'active')
                 .get();
-            myChitsCountElement.textContent = membershipsSnapshot.size;
+            activeChitsCount = membershipsSnapshot.size;
+        } catch (error) {
+            console.warn('Error counting active chits:', error);
+        }
+        myChitsCountElement.textContent = activeChitsCount;
 
-            // Calculate total paid
+        // Calculate total paid
+        let totalPaid = 0;
+        try {
             const paymentsSnapshot = await db.collection('payments')
                 .where('memberId', '==', currentUser.uid)
                 .where('status', '==', 'paid')
                 .get();
             
-            let totalPaid = 0;
             paymentsSnapshot.forEach(doc => {
                 totalPaid += doc.data().amount;
             });
-            totalPaidElement.textContent = `₹${totalPaid.toLocaleString()}`;
+        } catch (error) {
+            console.warn('Error calculating total paid:', error);
+        }
+        totalPaidElement.textContent = `₹${totalPaid.toLocaleString()}`;
 
-            // Count due payments
+        // Count due payments
+        let duePaymentsCount = 0;
+        try {
             const duePaymentsSnapshot = await db.collection('payments')
                 .where('memberId', '==', currentUser.uid)
                 .where('status', 'in', ['pending', 'overdue'])
                 .get();
-            duePaymentsElement.textContent = duePaymentsSnapshot.size;
+            duePaymentsCount = duePaymentsSnapshot.size;
+        } catch (error) {
+            console.warn('Error counting due payments:', error);
+        }
+        duePaymentsElement.textContent = duePaymentsCount;
 
-            // Count auctions won
+        // Count auctions won
+        let auctionsWonCount = 0;
+        try {
             const auctionsSnapshot = await db.collection('auctions')
                 .where('winnerId', '==', currentUser.uid)
                 .get();
-            auctionsWonElement.textContent = auctionsSnapshot.size;
-
+            auctionsWonCount = auctionsSnapshot.size;
         } catch (error) {
-            console.error('Error updating member stats:', error);
+            console.warn('Error counting auctions won:', error);
         }
-    }
+        auctionsWonElement.textContent = auctionsWonCount;
 
+    } catch (error) {
+        console.error('Error updating member stats:', error);
+        // Set safe defaults
+        myChitsCountElement.textContent = '0';
+        totalPaidElement.textContent = '₹0';
+        duePaymentsElement.textContent = '0';
+        auctionsWonElement.textContent = '0';
+    }
+}
+    
     // Update profile information
     function updateProfileInfo() {
         if (userData) {
@@ -435,58 +477,65 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Verify chit code
-    async function verifyChitCode() {
-        const chitCode = document.getElementById('chitCode').value.trim().toUpperCase();
-        
-        if (!chitCode) {
-            alert('Please enter a chit code');
+  // Enhanced verify chit code with better error handling
+async function verifyChitCode() {
+    const chitCode = document.getElementById('chitCode').value.trim().toUpperCase();
+    
+    if (!chitCode) {
+        alert('Please enter a chit code');
+        return;
+    }
+
+    try {
+        setLoading(verifyChitBtn, true);
+
+        const chitsSnapshot = await db.collection('chits')
+            .where('chitCode', '==', chitCode)
+            .where('status', '==', 'active')
+            .get();
+
+        if (chitsSnapshot.empty) {
+            alert('Invalid chit code or chit fund is not active');
             return;
         }
 
-        try {
-            setLoading(verifyChitBtn, true);
+        const chitDoc = chitsSnapshot.docs[0];
+        currentChitToJoin = { id: chitDoc.id, ...chitDoc.data() };
 
-            const chitsSnapshot = await db.collection('chits')
-                .where('chitCode', '==', chitCode)
-                .where('status', '==', 'active')
-                .get();
+        // Check if member is already joined
+        const membershipSnapshot = await db.collection('chitMemberships')
+            .where('chitId', '==', currentChitToJoin.id)
+            .where('memberId', '==', currentUser.uid)
+            .get();
 
-            if (chitsSnapshot.empty) {
-                alert('Invalid chit code or chit fund is not active');
-                return;
-            }
-
-            const chitDoc = chitsSnapshot.docs[0];
-            currentChitToJoin = { id: chitDoc.id, ...chitDoc.data() };
-
-            // Check if member is already joined
-            const membershipSnapshot = await db.collection('chitMemberships')
-                .where('chitId', '==', currentChitToJoin.id)
-                .where('memberId', '==', currentUser.uid)
-                .get();
-
-            if (!membershipSnapshot.empty) {
-                alert('You have already joined this chit fund');
-                return;
-            }
-
-            // Show chit preview
-            document.getElementById('previewChitName').textContent = `Name: ${currentChitToJoin.name}`;
-            document.getElementById('previewChitAmount').textContent = `Total Amount: ₹${currentChitToJoin.totalAmount?.toLocaleString()}`;
-            document.getElementById('previewChitDuration').textContent = `Duration: ${currentChitToJoin.duration} months`;
-            
-            document.getElementById('chitPreview').classList.remove('d-none');
-            verifyChitBtn.classList.add('d-none');
-            joinChitConfirmBtn.classList.remove('d-none');
-
-        } catch (error) {
-            console.error('Error verifying chit code:', error);
-            alert('Error verifying chit code: ' + error.message);
-        } finally {
-            setLoading(verifyChitBtn, false);
+        if (!membershipSnapshot.empty) {
+            alert('You have already joined this chit fund');
+            return;
         }
+
+        // Check if chit has available slots
+        if (currentChitToJoin.currentMembers >= currentChitToJoin.maxMembers) {
+            alert('This chit fund is already full. Please contact the manager.');
+            return;
+        }
+
+        // Show chit preview
+        document.getElementById('previewChitName').textContent = `Name: ${currentChitToJoin.name}`;
+        document.getElementById('previewChitAmount').textContent = `Total Amount: ₹${currentChitToJoin.totalAmount?.toLocaleString()}`;
+        document.getElementById('previewChitDuration').textContent = `Duration: ${currentChitToJoin.duration} months`;
+        document.getElementById('previewChitMembers').textContent = `Members: ${currentChitToJoin.currentMembers || 0}/${currentChitToJoin.maxMembers}`;
+        
+        document.getElementById('chitPreview').classList.remove('d-none');
+        verifyChitBtn.classList.add('d-none');
+        joinChitConfirmBtn.classList.remove('d-none');
+
+    } catch (error) {
+        console.error('Error verifying chit code:', error);
+        alert('Error verifying chit code: ' + error.message);
+    } finally {
+        setLoading(verifyChitBtn, false);
     }
+}
 
     // Join chit fund
     async function joinChitFund() {
