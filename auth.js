@@ -1,38 +1,75 @@
 // Wait for DOM and Firebase to be loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if Firebase is available
     if (typeof firebase === 'undefined' || !firebase.auth) {
         console.error('Firebase Auth not loaded');
         showGlobalError('Firebase not loaded. Please refresh the page.');
         return;
     }
 
-    // Initialize auth
     const auth = firebase.auth();
     const db = firebase.firestore();
 
     // DOM Elements
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
+    const roleSelectionForm = document.getElementById('roleSelectionForm');
     const loginFormElement = document.getElementById('loginFormElement');
     const registerFormElement = document.getElementById('registerFormElement');
     const showRegister = document.getElementById('showRegister');
     const showLogin = document.getElementById('showLogin');
     const loginMessage = document.getElementById('loginMessage');
     const registerMessage = document.getElementById('registerMessage');
+    
+    // Role selection elements
+    const roleCards = document.querySelectorAll('.role-card');
+    const confirmRoleBtn = document.getElementById('confirmRoleBtn');
+    
+    // Registration progress
+    const progressSteps = document.querySelectorAll('.progress-step');
+    const stepIndicators = document.querySelectorAll('.step-indicator');
+    const stepLabels = document.querySelectorAll('.step-label');
+    const progressConnectors = document.querySelectorAll('.progress-connector');
 
-    // Password toggle elements
-    const loginPasswordToggle = document.getElementById('loginPasswordToggle');
-    const registerPasswordToggle = document.getElementById('registerPasswordToggle');
-    const registerConfirmPasswordToggle = document.getElementById('registerConfirmPasswordToggle');
+    let selectedRole = null;
+    let tempUserData = null;
 
-    // Initialize password toggles
-    initPasswordToggles();
+    // Initialize registration progress
+    function initializeProgress() {
+        updateProgress(1); // Start at step 1 (registration)
+    }
+
+    // Update progress steps
+    function updateProgress(step) {
+        progressSteps.forEach((progressStep, index) => {
+            const indicator = stepIndicators[index];
+            const label = stepLabels[index];
+            const connector = progressConnectors[index - 1];
+
+            if (index + 1 < step) {
+                // Completed steps
+                indicator.classList.add('completed');
+                indicator.classList.remove('active');
+                label.classList.add('active');
+                if (connector) connector.classList.add('completed');
+            } else if (index + 1 === step) {
+                // Current step
+                indicator.classList.add('active');
+                indicator.classList.remove('completed');
+                label.classList.add('active');
+            } else {
+                // Future steps
+                indicator.classList.remove('active', 'completed');
+                label.classList.remove('active');
+                if (connector) connector.classList.remove('completed');
+            }
+        });
+    }
 
     // Switch between login and register forms
     showRegister.addEventListener('click', (e) => {
         e.preventDefault();
         switchToForm('register');
+        initializeProgress();
     });
 
     showLogin.addEventListener('click', (e) => {
@@ -42,183 +79,82 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Switch form with animation
     function switchToForm(formType) {
-        const currentForm = formType === 'login' ? registerForm : loginForm;
-        const newForm = formType === 'login' ? loginForm : registerForm;
-        
-        // Animate out current form
-        currentForm.style.transform = 'translateX(-30px)';
-        currentForm.style.opacity = '0';
-        currentForm.classList.remove('active');
-        
-        // Animate in new form
+        const forms = [loginForm, registerForm, roleSelectionForm];
+        forms.forEach(form => {
+            form.classList.remove('active');
+            form.style.opacity = '0';
+            form.style.transform = 'translateX(30px)';
+        });
+
         setTimeout(() => {
-            newForm.style.transform = 'translateX(0)';
-            newForm.style.opacity = '1';
-            newForm.classList.add('active');
+            const targetForm = formType === 'login' ? loginForm : 
+                             formType === 'register' ? registerForm : roleSelectionForm;
+            targetForm.classList.add('active');
+            targetForm.style.opacity = '1';
+            targetForm.style.transform = 'translateX(0)';
         }, 300);
         
         clearMessages();
-        resetForms();
-    }
-
-    // Initialize password visibility toggles
-    function initPasswordToggles() {
-        // Login password toggle
-        loginPasswordToggle.addEventListener('click', () => {
-            togglePasswordVisibility('loginPassword', loginPasswordToggle);
-        });
-
-        // Register password toggle
-        registerPasswordToggle.addEventListener('click', () => {
-            togglePasswordVisibility('registerPassword', registerPasswordToggle);
-        });
-
-        // Register confirm password toggle
-        registerConfirmPasswordToggle.addEventListener('click', () => {
-            togglePasswordVisibility('registerConfirmPassword', registerConfirmPasswordToggle);
-        });
-    }
-
-    // Toggle password visibility
-    function togglePasswordVisibility(inputId, toggleButton) {
-        const input = document.getElementById(inputId);
-        const icon = toggleButton.querySelector('i');
-        
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.remove('fa-eye');
-            icon.classList.add('fa-eye-slash');
-        } else {
-            input.type = 'password';
-            icon.classList.remove('fa-eye-slash');
-            icon.classList.add('fa-eye');
+        if (formType === 'register') {
+            resetForms();
         }
     }
 
-    // Clear message alerts
-    function clearMessages() {
-        loginMessage.classList.add('d-none');
-        registerMessage.classList.add('d-none');
-        loginMessage.className = 'alert-message d-none';
-        registerMessage.className = 'alert-message d-none';
-    }
+    // Role selection
+    roleCards.forEach(card => {
+        card.addEventListener('click', () => {
+            // Remove selected class from all cards
+            roleCards.forEach(c => c.classList.remove('selected'));
+            // Add selected class to clicked card
+            card.classList.add('selected');
+            selectedRole = card.getAttribute('data-role');
+            confirmRoleBtn.disabled = false;
+        });
+    });
 
-    // Reset form fields
-    function resetForms() {
-        loginFormElement.reset();
-        registerFormElement.reset();
-    }
-
-    // Show message alert
-    function showMessage(element, message, type) {
-        element.textContent = message;
-        element.className = `alert-message ${type}`;
-        element.classList.remove('d-none');
-        
-        // Auto hide success messages after 5 seconds
-        if (type === 'success') {
-            setTimeout(() => {
-                element.classList.add('d-none');
-            }, 5000);
-        }
-    }
-
-    // Show global error message
-    function showGlobalError(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'alert alert-danger position-fixed top-0 start-50 translate-middle-x mt-3';
-        errorDiv.style.zIndex = '9999';
-        errorDiv.innerHTML = `
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            ${message}
-            <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
-        `;
-        document.body.appendChild(errorDiv);
-    }
-
-    // Set loading state for button
-    function setLoading(button, isLoading) {
-        if (isLoading) {
-            button.disabled = true;
-            button.classList.add('loading');
-        } else {
-            button.disabled = false;
-            button.classList.remove('loading');
-        }
-    }
-
-    // Validate email format
-    function isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-
-    // Validate password strength
-    function isStrongPassword(password) {
-        return password.length >= 6;
-    }
-
-    // Login form submission
-    loginFormElement.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const email = document.getElementById('loginEmail').value.trim();
-        const password = document.getElementById('loginPassword').value;
-        const submitButton = loginFormElement.querySelector('.btn-auth');
-        
-        // Basic validation
-        if (!email || !password) {
-            showMessage(loginMessage, 'Please fill in all fields.', 'error');
+    // Confirm role and complete registration
+    confirmRoleBtn.addEventListener('click', async () => {
+        if (!selectedRole || !tempUserData) {
+            showMessage(registerMessage, 'Please complete all registration steps.', 'error');
             return;
         }
-        
-        if (!isValidEmail(email)) {
-            showMessage(loginMessage, 'Please enter a valid email address.', 'error');
-            return;
-        }
-        
-        setLoading(submitButton, true);
-        
+
         try {
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
-            const user = userCredential.user;
-            
-            showMessage(loginMessage, 'Login successful! Redirecting to dashboard...', 'success');
-            
-            // Redirect to dashboard after successful login
+            setLoading(confirmRoleBtn, true);
+
+            // Complete user registration with role
+            const userData = {
+                ...tempUserData,
+                role: selectedRole,
+                memberSince: selectedRole === 'member' ? new Date() : null,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                activeChits: 0,
+                totalInvestment: 0,
+                returnsReceived: 0,
+                creditScore: 'Good'
+            };
+
+            await db.collection('users').doc(tempUserData.uid).set(userData);
+
+            showMessage(registerMessage, `Registration successful! Welcome as ${selectedRole === 'manager' ? 'Manager' : 'Member'}.`, 'success');
+
+            // Redirect based on role
             setTimeout(() => {
-                window.location.href = 'dashboard.html';
-            }, 1500);
-            
+                const redirectUrl = selectedRole === 'manager' ? 'dashboard-manager.html' : 'dashboard-member.html';
+                window.location.href = redirectUrl;
+            }, 2000);
+
         } catch (error) {
-            console.error('Login error:', error);
-            let errorMessage = 'An error occurred during login. Please try again.';
-            
-            switch (error.code) {
-                case 'auth/user-not-found':
-                    errorMessage = 'No account found with this email address.';
-                    break;
-                case 'auth/wrong-password':
-                    errorMessage = 'Incorrect password. Please try again.';
-                    break;
-                case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address format.';
-                    break;
-                case 'auth/too-many-requests':
-                    errorMessage = 'Too many failed attempts. Please try again later.';
-                    break;
-                case 'auth/user-disabled':
-                    errorMessage = 'This account has been disabled.';
-                    break;
-            }
-            
-            showMessage(loginMessage, errorMessage, 'error');
+            console.error('Error completing registration:', error);
+            showMessage(registerMessage, 'Error completing registration: ' + error.message, 'error');
         } finally {
-            setLoading(submitButton, false);
+            setLoading(confirmRoleBtn, false);
         }
     });
 
-    // Register form submission
+    // [Keep all the existing functions like clearMessages, showMessage, setLoading, etc.]
+
+    // Register form submission (Updated)
     registerFormElement.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -229,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const acceptTerms = document.getElementById('acceptTerms').checked;
         const submitButton = registerFormElement.querySelector('.btn-auth');
         
-        // Validation
+        // Validation (keep existing validation code)
         if (!name || !email || !password || !confirmPassword) {
             showMessage(registerMessage, 'Please fill in all fields.', 'error');
             return;
@@ -261,23 +197,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             const user = userCredential.user;
             
-            // Save additional user data to Firestore
-            await db.collection('users').doc(user.uid).set({
+            // Store temporary user data for role selection
+            tempUserData = {
+                uid: user.uid,
                 name: name,
                 email: email,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                totalFunds: 0,
-                activeChits: 0,
-                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            
-            showMessage(registerMessage, 'Account created successfully! Welcome to ChitFund Pro.', 'success');
-            
-            // Redirect to dashboard after successful registration
-            setTimeout(() => {
-                window.location.href = 'dashboard.html';
-            }, 2000);
-            
+                phone: '', // Will be updated later
+                address: '' // Will be updated later
+            };
+
+            // Move to role selection step
+            updateProgress(2);
+            switchToForm('roleSelection');
+
         } catch (error) {
             console.error('Registration error:', error);
             let errorMessage = 'An error occurred during registration. Please try again.';
@@ -306,26 +238,115 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Check if user is already logged in
-    auth.onAuthStateChanged((user) => {
-        if (user && window.location.pathname.includes('auth.html')) {
-            // User is logged in and on auth page, redirect to dashboard
-            window.location.href = 'dashboard.html';
+    // Login form submission (Enhanced with role-based redirect)
+    loginFormElement.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const submitButton = loginFormElement.querySelector('.btn-auth');
+        
+        // Basic validation
+        if (!email || !password) {
+            showMessage(loginMessage, 'Please fill in all fields.', 'error');
+            return;
+        }
+        
+        if (!isValidEmail(email)) {
+            showMessage(loginMessage, 'Please enter a valid email address.', 'error');
+            return;
+        }
+        
+        setLoading(submitButton, true);
+        
+        try {
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+            
+            // Get user role from Firestore
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                const userRole = userData.role || 'member';
+                
+                showMessage(loginMessage, `Login successful! Redirecting to ${userRole} dashboard...`, 'success');
+                
+                // Redirect based on role
+                setTimeout(() => {
+                    const redirectUrl = userRole === 'manager' ? 'dashboard-manager.html' : 'dashboard-member.html';
+                    window.location.href = redirectUrl;
+                }, 1500);
+            } else {
+                // User document doesn't exist, create one with member role
+                await db.collection('users').doc(user.uid).set({
+                    name: user.displayName || user.email.split('@')[0],
+                    email: user.email,
+                    role: 'member',
+                    memberSince: new Date(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    activeChits: 0,
+                    totalInvestment: 0,
+                    returnsReceived: 0,
+                    creditScore: 'Good'
+                });
+                
+                showMessage(loginMessage, 'Login successful! Redirecting to member dashboard...', 'success');
+                setTimeout(() => {
+                    window.location.href = 'dashboard-member.html';
+                }, 1500);
+            }
+            
+        } catch (error) {
+            console.error('Login error:', error);
+            let errorMessage = 'An error occurred during login. Please try again.';
+            
+            switch (error.code) {
+                case 'auth/user-not-found':
+                    errorMessage = 'No account found with this email address.';
+                    break;
+                case 'auth/wrong-password':
+                    errorMessage = 'Incorrect password. Please try again.';
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = 'Invalid email address format.';
+                    break;
+                case 'auth/too-many-requests':
+                    errorMessage = 'Too many failed attempts. Please try again later.';
+                    break;
+                case 'auth/user-disabled':
+                    errorMessage = 'This account has been disabled.';
+                    break;
+            }
+            
+            showMessage(loginMessage, errorMessage, 'error');
+        } finally {
+            setLoading(submitButton, false);
         }
     });
 
-    // Add input animations
-    document.querySelectorAll('.form-control').forEach(input => {
-        input.addEventListener('focus', function() {
-            this.parentElement.classList.add('focused');
-        });
-        
-        input.addEventListener('blur', function() {
-            if (!this.value) {
-                this.parentElement.classList.remove('focused');
+    // Check if user is already logged in (Enhanced)
+    auth.onAuthStateChanged(async (user) => {
+        if (user && window.location.pathname.includes('auth.html')) {
+            // User is logged in and on auth page, redirect based on role
+            try {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    const redirectUrl = userData.role === 'manager' ? 'dashboard-manager.html' : 'dashboard-member.html';
+                    window.location.href = redirectUrl;
+                } else {
+                    // User document doesn't exist, redirect to member dashboard
+                    window.location.href = 'dashboard-member.html';
+                }
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                window.location.href = 'dashboard-member.html';
             }
-        });
+        }
     });
 
-    console.log('Auth page initialized successfully');
+    // Initialize the auth page
+    initializeProgress();
+    console.log('Auth page initialized successfully with role selection');
 });
