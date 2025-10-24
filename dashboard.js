@@ -231,9 +231,9 @@ if (createChitForm) {
             
             // Check if start date is in the future
             const selectedDate = new Date(startDate);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            if (selectedDate < today) {
+            const currentDate = new Date(); // Changed variable name from 'today' to 'currentDate'
+            currentDate.setHours(0, 0, 0, 0);
+            if (selectedDate < currentDate) {
                 throw new Error('Start date cannot be in the past');
             }
             
@@ -266,8 +266,8 @@ if (createChitForm) {
             createChitForm.reset();
             
             // Reset default date
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('start-date').value = today;
+            const currentDateStr = new Date().toISOString().split('T')[0]; // Changed variable name
+            document.getElementById('start-date').value = currentDateStr;
             
             // Reset button state
             submitBtn.textContent = originalText;
