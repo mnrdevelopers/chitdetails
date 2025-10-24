@@ -23,7 +23,6 @@ const chitTitle = document.getElementById('chit-title');
 const totalAmount = document.getElementById('total-amount');
 const monthsCompleted = document.getElementById('months-completed');
 const amountCirculated = document.getElementById('amount-circulated');
-const monthlyAmount = document.getElementById('monthly-amount');
 const currentMonth = document.getElementById('current-month');
 const totalCollected = document.getElementById('total-collected');
 const totalPending = document.getElementById('total-pending');
@@ -32,8 +31,6 @@ const receiverSelect = document.getElementById('receiver-select');
 const saveReceiverBtn = document.getElementById('save-receiver');
 const prevMonthBtn = document.getElementById('prev-month');
 const nextMonthBtn = document.getElementById('next-month');
-const addMemberBtn = document.getElementById('add-member-btn');
-const addMemberForm = document.getElementById('add-member-form');
 
 // Global variables
 let currentChit = null;
@@ -44,28 +41,19 @@ let members = [];
 async function loadChitDetails() {
     const chitId = getChitIdFromUrl();
     if (!chitId) {
-        console.error('No chit ID found in URL');
         window.location.href = 'dashboard.html';
         return;
     }
     
     try {
-        console.log('Loading chit details for ID:', chitId);
-        
         // Get chit document
         const chitDoc = await getDoc(doc(db, 'chits', chitId));
         if (!chitDoc.exists()) {
-            console.error('Chit document does not exist');
             window.location.href = 'dashboard.html';
             return;
         }
         
-        currentChit = { 
-            id: chitDoc.id, 
-            ...chitDoc.data() 
-        };
-        
-        console.log('Loaded chit:', currentChit);
+        currentChit = { id: chitDoc.id, ...chitDoc.data() };
         
         // Update UI with chit info
         chitTitle.textContent = currentChit.name;
@@ -91,8 +79,6 @@ async function loadMembers() {
     if (!currentChit) return;
     
     try {
-        console.log('Loading members for chit:', currentChit.id);
-        
         const q = query(
             collection(db, 'chits', currentChit.id, 'members'),
             orderBy('createdAt')
@@ -102,17 +88,11 @@ async function loadMembers() {
         members = [];
         
         querySnapshot.forEach((doc) => {
-            members.push({ 
-                id: doc.id, 
-                ...doc.data() 
-            });
+            members.push({ id: doc.id, ...doc.data() });
         });
         
-        console.log('Loaded members:', members);
-        
-        // If no members exist and we have totalMembers info, create placeholder members
-        if (members.length === 0 && currentChit.totalMembers) {
-            console.log('Creating placeholder members');
+        // If no members exist, create placeholder members
+        if (members.length === 0) {
             await createPlaceholderMembers();
             await loadMembers(); // Reload members
         }
@@ -126,7 +106,7 @@ async function loadMembers() {
 
 // Create placeholder members based on total members count
 async function createPlaceholderMembers() {
-    if (!currentChit || !currentChit.totalMembers) return;
+    if (!currentChit) return;
     
     try {
         for (let i = 1; i <= currentChit.totalMembers; i++) {
@@ -147,8 +127,6 @@ async function loadMonthlyData() {
     if (!currentChit) return;
     
     try {
-        console.log('Loading monthly data for month:', currentDisplayMonth);
-        
         // Update current month display
         currentMonth.textContent = `Month ${currentDisplayMonth}`;
         
@@ -180,8 +158,6 @@ async function loadPaymentsForMonth(month) {
             const payment = doc.data();
             payments[payment.memberId] = payment.status;
         });
-        
-        console.log('Payments for month', month, ':', payments);
         
         // Update members list with payment status
         displayMembersWithPayments(payments);
@@ -262,14 +238,11 @@ async function togglePaymentStatus(memberId, currentStatus) {
             });
         }
         
-        console.log('Payment status updated to:', newStatus);
-        
         // Reload monthly data to reflect changes
         await loadMonthlyData();
         
     } catch (error) {
         console.error('Error updating payment status:', error);
-        alert('Error updating payment status. Please try again.');
     }
 }
 
@@ -305,10 +278,8 @@ async function loadReceiverForMonth(month) {
             const receiverDoc = querySnapshot.docs[0];
             const receiver = receiverDoc.data();
             receiverSelect.value = receiver.memberId;
-            console.log('Loaded receiver for month', month, ':', receiver);
         } else {
             receiverSelect.value = '';
-            console.log('No receiver found for month', month);
         }
         
     } catch (error) {
@@ -331,10 +302,7 @@ function updateReceiverSelect() {
 // Save receiver for current month
 if (saveReceiverBtn) {
     saveReceiverBtn.addEventListener('click', async () => {
-        if (!currentChit || !receiverSelect.value) {
-            alert('Please select a member');
-            return;
-        }
+        if (!currentChit || !receiverSelect.value) return;
         
         try {
             // Check if receiver already exists for this month
@@ -345,27 +313,23 @@ if (saveReceiverBtn) {
             
             const querySnapshot = await getDocs(q);
             
-            const selectedMember = members.find(m => m.id === receiverSelect.value);
-            
             if (!querySnapshot.empty) {
                 // Update existing receiver
                 const receiverDoc = querySnapshot.docs[0];
                 await updateDoc(doc(db, 'chits', currentChit.id, 'receivers', receiverDoc.id), {
                     memberId: receiverSelect.value,
-                    memberName: selectedMember?.name,
+                    memberName: members.find(m => m.id === receiverSelect.value)?.name,
                     updatedAt: serverTimestamp()
                 });
-                console.log('Updated receiver for month', currentDisplayMonth);
             } else {
                 // Create new receiver record
                 await addDoc(collection(db, 'chits', currentChit.id, 'receivers'), {
                     month: currentDisplayMonth,
                     memberId: receiverSelect.value,
-                    memberName: selectedMember?.name,
-                    amount: currentChit.monthlyAmount * members.length,
+                    memberName: members.find(m => m.id === receiverSelect.value)?.name,
+                    amount: currentChit.monthlyAmount * currentChit.totalMembers,
                     createdAt: serverTimestamp()
                 });
-                console.log('Created receiver for month', currentDisplayMonth);
             }
             
             alert('Receiver saved successfully!');
@@ -389,56 +353,9 @@ if (prevMonthBtn) {
 
 if (nextMonthBtn) {
     nextMonthBtn.addEventListener('click', () => {
-        if (currentChit && currentDisplayMonth < currentChit.totalMonths) {
+        if (currentDisplayMonth < currentChit.totalMonths) {
             currentDisplayMonth++;
             loadMonthlyData();
-        }
-    });
-}
-
-// Add member functionality
-if (addMemberBtn) {
-    addMemberBtn.addEventListener('click', () => {
-        const modal = document.getElementById('add-member-modal');
-        if (modal) {
-            modal.classList.add('active');
-        }
-    });
-}
-
-if (addMemberForm) {
-    addMemberForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        if (!currentChit) return;
-        
-        const name = document.getElementById('member-name').value.trim();
-        const phone = document.getElementById('member-phone').value.trim();
-        
-        if (!name || !phone) {
-            alert('Please fill in all fields');
-            return;
-        }
-        
-        try {
-            await addDoc(collection(db, 'chits', currentChit.id, 'members'), {
-                name: name,
-                phone: phone,
-                createdAt: serverTimestamp()
-            });
-            
-            // Close modal and reset form
-            document.getElementById('add-member-modal').classList.remove('active');
-            addMemberForm.reset();
-            
-            // Reload members
-            await loadMembers();
-            
-            alert('Member added successfully!');
-            
-        } catch (error) {
-            console.error('Error adding member:', error);
-            alert('Error adding member. Please try again.');
         }
     });
 }
@@ -447,14 +364,11 @@ if (addMemberForm) {
 function updateSummary() {
     if (!currentChit) return;
     
-    console.log('Updating summary with chit data:', currentChit);
-    
     const totalChitAmount = currentChit.monthlyAmount * currentChit.totalMembers;
     const completedMonths = calculateMonthsCompleted(currentChit.startDate, currentChit.totalMonths);
     
     totalAmount.textContent = `₹${totalChitAmount.toLocaleString()}`;
     monthsCompleted.textContent = `${completedMonths}/${currentChit.totalMonths}`;
-    monthlyAmount.textContent = `₹${currentChit.monthlyAmount.toLocaleString()}`;
     
     // Calculate amount circulated (simplified - would need actual receiver data)
     const circulatedAmount = completedMonths * currentChit.monthlyAmount * currentChit.totalMembers;
@@ -463,23 +377,15 @@ function updateSummary() {
 
 // Calculate months completed
 function calculateMonthsCompleted(startDate, totalMonths) {
-    if (!startDate) return 1;
+    const start = new Date(startDate);
+    const now = new Date();
+    const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + 
+                      (now.getMonth() - start.getMonth());
     
-    try {
-        const start = new Date(startDate);
-        const now = new Date();
-        const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + 
-                          (now.getMonth() - start.getMonth());
-        
-        return Math.min(Math.max(1, monthsDiff + 1), totalMonths);
-    } catch (error) {
-        console.error('Error calculating months completed:', error);
-        return 1;
-    }
+    return Math.min(Math.max(0, monthsDiff + 1), totalMonths);
 }
 
 // Initialize chit page when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Chit page initialized');
     loadChitDetails();
 });
