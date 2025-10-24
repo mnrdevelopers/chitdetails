@@ -54,33 +54,49 @@ auth.onAuthStateChanged(async (user) => {
     }
 });
 
-    // Load user data
-    async function loadUserData() {
-        try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            if (userDoc.exists) {
-                userData = userDoc.data();
-                // Ensure user has manager role
-                if (userData.role !== 'manager') {
+  // Load user data with enhanced role management
+async function loadUserData() {
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        if (userDoc.exists) {
+            userData = userDoc.data();
+            // Ensure user has manager role
+            if (userData.role !== 'manager') {
+                try {
                     await db.collection('users').doc(currentUser.uid).update({
-                        role: 'manager'
+                        role: 'manager',
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     userData.role = 'manager';
+                } catch (updateError) {
+                    console.warn('Could not update user role:', updateError);
                 }
-            } else {
-                // Create manager profile
-                userData = {
-                    name: currentUser.displayName || currentUser.email.split('@')[0],
-                    email: currentUser.email,
-                    role: 'manager',
-                    createdAt: new Date()
-                };
-                await db.collection('users').doc(currentUser.uid).set(userData);
             }
-        } catch (error) {
-            console.error('Error loading user data:', error);
+        } else {
+            // Create manager profile
+            userData = {
+                name: currentUser.displayName || currentUser.email.split('@')[0],
+                email: currentUser.email,
+                role: 'manager',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            try {
+                await db.collection('users').doc(currentUser.uid).set(userData);
+            } catch (setError) {
+                console.warn('Could not create user profile:', setError);
+            }
         }
+    } catch (error) {
+        console.error('Error loading user data:', error);
+        // Create basic user data object even if DB fails
+        userData = {
+            name: currentUser.displayName || currentUser.email.split('@')[0],
+            email: currentUser.email,
+            role: 'manager'
+        };
     }
+}
 
     // Check and set manager role
     async function checkManagerRole() {
