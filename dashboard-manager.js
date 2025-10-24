@@ -1,5 +1,9 @@
-// Wait for DOM and Firebase to be loaded
 document.addEventListener('DOMContentLoaded', function() {
+    // Add these global variable declarations
+    window.db = null;
+    window.currentUser = null;
+    window.userData = null;
+    
     if (typeof firebase === 'undefined' || !firebase.auth) {
         console.error('Firebase not loaded');
         window.location.href = 'auth.html';
@@ -8,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const auth = firebase.auth();
     const db = firebase.firestore();
+    
+    // Assign to global variables
+    window.db = db;
 
     // DOM Elements
     const userNameElement = document.getElementById('userName');
@@ -36,24 +43,33 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentUser = null;
     let userData = null;
 
-    // Check authentication and role
-    auth.onAuthStateChanged(async (user) => {
-        try {
-            if (user) {
-                currentUser = user;
-                await loadUserData();
-                await checkManagerRole();
+    let authStateChecked = false;
+
+auth.onAuthStateChanged(async (user) => {
+    try {
+        if (authStateChecked) return;
+        authStateChecked = true;
+
+        if (user) {
+            currentUser = user;
+            window.currentUser = user; // Assign to global
+            
+            await loadUserData();
+            const hasAccess = await checkManagerRole();
+            
+            if (hasAccess) {
                 await loadDashboardData();
                 updateUI();
                 setupEventListeners();
-            } else {
-                window.location.href = 'auth.html';
             }
-        } catch (error) {
-            console.error('Error in auth state change:', error);
+        } else {
             window.location.href = 'auth.html';
         }
-    });
+    } catch (error) {
+        console.error('Error in auth state change:', error);
+        window.location.href = 'auth.html';
+    }
+});
 
     function setupEventListeners() {
         // Auto-calculate monthly amount
@@ -113,32 +129,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Load user data
-    async function loadUserData() {
-        try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            if (userDoc.exists) {
-                userData = userDoc.data();
-                console.log('User data loaded:', userData);
-            } else {
-                console.error('User document not found');
-            }
-        } catch (error) {
-            console.error('Error loading user data:', error);
+   async function loadUserData() {
+    try {
+        console.log('Loading user data for:', currentUser.uid);
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        if (userDoc.exists) {
+            userData = userDoc.data();
+            window.userData = userData; // Assign to global
+            console.log('User data loaded successfully, role:', userData.role);
+        } else {
+            console.error('User document not found in Firestore');
+            throw new Error('User document not found');
         }
+    } catch (error) {
+        console.error('Error loading user data:', error);
+        throw error;
     }
+}
 
-    // Check and set manager role
-    async function checkManagerRole() {
-        try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            if (userDoc.exists && userDoc.data().role !== 'manager') {
+   async function checkManagerRole() {
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        if (userDoc.exists) {
+            const userRole = userDoc.data().role;
+            if (userRole !== 'manager') {
                 window.location.href = 'dashboard-member.html';
+                return false;
             }
-        } catch (error) {
-            console.error('Error checking role:', error);
+            return true;
+        } else {
+            console.error('User document not found');
+            window.location.href = 'auth.html';
+            return false;
         }
+    } catch (error) {
+        console.error('Error checking role:', error);
+        window.location.href = 'auth.html';
+        return false;
     }
+}
 
     // Load dashboard data
     async function loadDashboardData() {
@@ -1818,15 +1847,19 @@ async function deletePayment(paymentId) {
         }, 5000);
     }
 
-    // Global functions for modal buttons
-    window.editChitFromView = function(chitId) {
-        const viewModal = document.getElementById('viewChitModal');
-        if (viewModal) {
-            const bsModal = bootstrap.Modal.getInstance(viewModal);
-            if (bsModal) bsModal.hide();
-        }
-        editChit(chitId);
-    };
+    // Update these global function declarations at the end
+window.editChitFromView = function(chitId) {
+    // Close modal and call edit function
+    const viewModal = document.getElementById('viewChitModal');
+    if (viewModal) {
+        const bsModal = bootstrap.Modal.getInstance(viewModal);
+        if (bsModal) bsModal.hide();
+    }
+    // You'll need to make editChit accessible or redefine it globally
+    if (window.editChit) {
+        window.editChit(chitId);
+    }
+};
 
     window.editMemberFromView = function(memberId) {
         const viewModal = document.getElementById('viewMemberModal');
@@ -2056,6 +2089,13 @@ window.editPaymentFromView = function(paymentId) {
     editPayment(paymentId);
 };
 
+window.removeMemberFromChit = async function(membershipId, chitId) {
+    if (!window.db || !window.currentUser) {
+        console.error('Firebase not initialized');
+        return;
+    }
+
 // Add global functions for member operations
 window.removeMemberFromChit = removeMemberFromChit;
 window.addMemberToChit = addMemberToChit;
+};
