@@ -7,7 +7,7 @@ import {
     where, 
     orderBy,
     serverTimestamp,
-    onSnapshot
+    onSnapshot 
 } from './firebase-config.js';
 import { auth } from './firebase-config.js';
 
@@ -15,14 +15,16 @@ import { auth } from './firebase-config.js';
 const chitList = document.getElementById('chit-list');
 const createChitForm = document.getElementById('create-chit-form');
 
-// Real-time listener for chit groups
-let unsubscribeChits = null;
-
-// Load user's chit groups with real-time updates
-function setupChitListener() {
+// Load user's chit groups
+async function loadChitGroups() {
     try {
         const user = auth.currentUser;
-        if (!user) return;
+        if (!user) {
+            console.log('No user found');
+            return;
+        }
+        
+        console.log('Loading chits for user:', user.uid);
         
         // Query chit groups created by current user
         const q = query(
@@ -31,44 +33,44 @@ function setupChitListener() {
             orderBy('createdAt', 'desc')
         );
         
-        // Set up real-time listener
-        unsubscribeChits = onSnapshot(q, (querySnapshot) => {
-            updateChitList(querySnapshot);
-        }, (error) => {
-            console.error('Error in chit listener:', error);
-            chitList.innerHTML = '<p class="error">Error loading chit groups. Please refresh the page.</p>';
+        const querySnapshot = await getDocs(q);
+        
+        // Clear existing list
+        chitList.innerHTML = '';
+        
+        if (querySnapshot.empty) {
+            chitList.innerHTML = `
+                <div class="text-center">
+                    <p>You haven't created any chit groups yet.</p>
+                    <p>Click "Create New Chit" to get started!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        console.log('Found', querySnapshot.size, 'chits');
+        
+        // Display chit groups
+        querySnapshot.forEach((doc) => {
+            const chit = doc.data();
+            console.log('Displaying chit:', doc.id, chit);
+            displayChitCard(doc.id, chit);
         });
         
     } catch (error) {
-        console.error('Error setting up chit listener:', error);
+        console.error('Error loading chit groups:', error);
         chitList.innerHTML = '<p class="error">Error loading chit groups. Please try again.</p>';
     }
 }
 
-// Update chit list with data from query snapshot
-function updateChitList(querySnapshot) {
-    // Clear existing list
-    chitList.innerHTML = '';
-    
-    if (querySnapshot.empty) {
-        chitList.innerHTML = `
-            <div class="text-center">
-                <p>You haven't created any chit groups yet.</p>
-                <p>Click "Create New Chit" to get started!</p>
-            </div>
-        `;
+// Display chit card in the list
+function displayChitCard(chitId, chit) {
+    // Ensure we have valid data
+    if (!chit || !chit.name || !chit.monthlyAmount || !chit.totalMembers || !chit.totalMonths) {
+        console.error('Invalid chit data:', chit);
         return;
     }
     
-    // Display chit groups
-    querySnapshot.forEach((doc) => {
-        const chit = doc.data();
-        displayChitCard(doc.id, chit);
-    });
-}
-
-// Display chit card in the list
-function displayChitCard(chitId, chit) {
     const totalAmount = chit.monthlyAmount * chit.totalMembers;
     const monthsCompleted = calculateMonthsCompleted(chit.startDate, chit.totalMonths);
     
@@ -97,12 +99,17 @@ function displayChitCard(chitId, chit) {
 function calculateMonthsCompleted(startDate, totalMonths) {
     if (!startDate) return 0;
     
-    const start = new Date(startDate);
-    const now = new Date();
-    const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + 
-                      (now.getMonth() - start.getMonth());
-    
-    return Math.min(Math.max(0, monthsDiff), totalMonths);
+    try {
+        const start = new Date(startDate);
+        const now = new Date();
+        const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + 
+                          (now.getMonth() - start.getMonth());
+        
+        return Math.min(Math.max(0, monthsDiff), totalMonths);
+    } catch (error) {
+        console.error('Error calculating months completed:', error);
+        return 0;
+    }
 }
 
 // Create new chit group
@@ -116,41 +123,46 @@ if (createChitForm) {
             return;
         }
         
-        // Get form values
-        const name = document.getElementById('chit-name').value;
-        const monthlyAmount = parseInt(document.getElementById('monthly-amount').value);
-        const totalMembers = parseInt(document.getElementById('total-members').value);
-        const totalMonths = parseInt(document.getElementById('total-months').value);
-        const startDate = document.getElementById('start-date').value;
-        
-        // Validate form data
-        if (!name || !monthlyAmount || !totalMembers || !totalMonths || !startDate) {
-            alert('Please fill in all fields.');
-            return;
-        }
-        
-        if (totalMembers < 2 || totalMembers > 50) {
-            alert('Total members must be between 2 and 50.');
-            return;
-        }
-        
-        if (totalMonths < 2 || totalMonths > 60) {
-            alert('Total months must be between 2 and 60.');
-            return;
-        }
-        
-        const formData = {
-            name: name,
-            monthlyAmount: monthlyAmount,
-            totalMembers: totalMembers,
-            totalMonths: totalMonths,
-            startDate: startDate,
-            ownerId: user.uid,
-            createdAt: serverTimestamp(),
-            currentMonth: 1
-        };
-        
         try {
+            // Get and validate form values
+            const name = document.getElementById('chit-name').value.trim();
+            const monthlyAmount = parseInt(document.getElementById('monthly-amount').value);
+            const totalMembers = parseInt(document.getElementById('total-members').value);
+            const totalMonths = parseInt(document.getElementById('total-months').value);
+            const startDate = document.getElementById('start-date').value;
+            
+            console.log('Form values:', { name, monthlyAmount, totalMembers, totalMonths, startDate });
+            
+            // Validation
+            if (!name) {
+                throw new Error('Chit name is required');
+            }
+            if (isNaN(monthlyAmount) || monthlyAmount < 1) {
+                throw new Error('Monthly amount must be a positive number');
+            }
+            if (isNaN(totalMembers) || totalMembers < 2 || totalMembers > 50) {
+                throw new Error('Total members must be between 2 and 50');
+            }
+            if (isNaN(totalMonths) || totalMonths < 2 || totalMonths > 60) {
+                throw new Error('Total months must be between 2 and 60');
+            }
+            if (!startDate) {
+                throw new Error('Start date is required');
+            }
+            
+            const formData = {
+                name: name,
+                monthlyAmount: monthlyAmount,
+                totalMembers: totalMembers,
+                totalMonths: totalMonths,
+                startDate: startDate,
+                ownerId: user.uid,
+                createdAt: serverTimestamp(),
+                currentMonth: 1
+            };
+            
+            console.log('Creating chit with data:', formData);
+            
             // Show loading state
             const submitBtn = createChitForm.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
@@ -169,26 +181,37 @@ if (createChitForm) {
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
             
-            // Show success message (optional)
+            // Show success message
             showTempMessage('Chit group created successfully!', 'success');
+            
+            // Reload the chit list to show the new chit
+            setTimeout(() => {
+                loadChitGroups();
+            }, 1000);
             
         } catch (error) {
             console.error('Error creating chit:', error);
             
             // Reset button state
             const submitBtn = createChitForm.querySelector('button[type="submit"]');
-            submitBtn.textContent = 'Create Chit';
-            submitBtn.disabled = false;
+            if (submitBtn) {
+                submitBtn.textContent = 'Create Chit';
+                submitBtn.disabled = false;
+            }
             
-            alert('Error creating chit group. Please try again. Error: ' + error.message);
+            alert('Error: ' + error.message);
         }
     });
 }
 
 // Show temporary message
 function showTempMessage(message, type) {
+    // Remove any existing messages first
+    const existingMessages = document.querySelectorAll('.temp-message');
+    existingMessages.forEach(msg => msg.remove());
+    
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
+    messageDiv.className = `message temp-message ${type}`;
     messageDiv.textContent = message;
     messageDiv.style.position = 'fixed';
     messageDiv.style.top = '20px';
@@ -197,6 +220,8 @@ function showTempMessage(message, type) {
     messageDiv.style.zIndex = '1000';
     messageDiv.style.minWidth = '300px';
     messageDiv.style.textAlign = 'center';
+    messageDiv.style.padding = '1rem';
+    messageDiv.style.borderRadius = '5px';
     
     document.body.appendChild(messageDiv);
     
@@ -208,17 +233,62 @@ function showTempMessage(message, type) {
     }, 3000);
 }
 
-// Clean up listener when leaving page
-function cleanup() {
-    if (unsubscribeChits) {
-        unsubscribeChits();
+// Setup real-time listener (optional - for automatic updates)
+function setupRealTimeListener() {
+    try {
+        const user = auth.currentUser;
+        if (!user) return;
+        
+        const q = query(
+            collection(db, 'chits'),
+            where('ownerId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+        );
+        
+        // Set up real-time listener
+        return onSnapshot(q, (querySnapshot) => {
+            console.log('Real-time update received');
+            updateChitList(querySnapshot);
+        }, (error) => {
+            console.error('Error in real-time listener:', error);
+        });
+        
+    } catch (error) {
+        console.error('Error setting up real-time listener:', error);
     }
+}
+
+// Update chit list with real-time data
+function updateChitList(querySnapshot) {
+    // Clear existing list
+    chitList.innerHTML = '';
+    
+    if (querySnapshot.empty) {
+        chitList.innerHTML = `
+            <div class="text-center">
+                <p>You haven't created any chit groups yet.</p>
+                <p>Click "Create New Chit" to get started!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    console.log('Real-time: Found', querySnapshot.size, 'chits');
+    
+    // Display chit groups
+    querySnapshot.forEach((doc) => {
+        const chit = doc.data();
+        displayChitCard(doc.id, chit);
+    });
 }
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    setupChitListener();
+    console.log('Dashboard initialized');
+    
+    // Load chits immediately
+    loadChitGroups();
+    
+    // Also set up real-time listener for future updates
+    setupRealTimeListener();
 });
-
-// Clean up when leaving the page
-window.addEventListener('beforeunload', cleanup);
