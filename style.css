@@ -4,6 +4,13 @@
     --accent: #4C763B;
     --dark: #043915;
     --light: #f8f9fa;
+    --white: #ffffff;
+    --gray: #6c757d;
+    --gray-light: #e9ecef;
+    --success: #28a745;
+    --danger: #dc3545;
+    --warning: #ffc107;
+    --info: #17a2b8;
 }
 
 * {
@@ -869,4 +876,5 @@ body {
 .chit-item, .member-item, .payment-item {
     animation: slideInUp 0.5s ease-out;
 }
+
 
