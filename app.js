@@ -6,43 +6,29 @@ import {
     onAuthStateChanged 
 } from './firebase-config.js';
 
-let authStateChecked = false;
-
-// Authentication state observer with proper redirect handling
+// Authentication state observer
 onAuthStateChanged(auth, (user) => {
-    if (!authStateChecked) {
-        authStateChecked = true;
+    if (user) {
+        // User is signed in
+        console.log('User is signed in:', user.email);
         
-        const currentPage = window.location.pathname.split('/').pop();
+        // Update UI for logged in user
+        const userNameElement = document.getElementById('user-name');
+        if (userNameElement) {
+            userNameElement.textContent = user.displayName || user.email;
+        }
         
-        if (user) {
-            // User is signed in
-            console.log('User is signed in:', user.email);
-            
-            // Update UI for logged in user
-            const userNameElement = document.getElementById('user-name');
-            if (userNameElement) {
-                userNameElement.textContent = user.displayName || user.email;
-            }
-            
-            // Redirect from login page to dashboard
-            if (currentPage === 'index.html' || currentPage === '') {
-                console.log('Redirecting to dashboard from login page');
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 100);
-            }
-        } else {
-            // User is signed out
-            console.log('User is signed out');
-            
-            // Redirect to login page if on protected pages
-            if (currentPage === 'dashboard.html' || currentPage === 'chit.html') {
-                console.log('Redirecting to login from protected page');
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 100);
-            }
+        // Redirect from login page if needed
+        if (window.location.pathname.endsWith('index.html')) {
+            window.location.href = 'dashboard.html';
+        }
+    } else {
+        // User is signed out
+        console.log('User is signed out');
+        
+        // Redirect to login page if not already there
+        if (!window.location.pathname.endsWith('index.html')) {
+            window.location.href = 'index.html';
         }
     }
 });
@@ -67,8 +53,7 @@ if (loginForm) {
             // Show success message
             showMessage(messageElement, 'Login successful! Redirecting...', 'success');
             
-            // Redirect will be handled by auth state change
-            
+            // Redirect to dashboard (handled by auth state change)
         } catch (error) {
             console.error('Login error:', error);
             showMessage(messageElement, getAuthErrorMessage(error), 'error');
@@ -113,7 +98,6 @@ if (logoutBtn) {
         try {
             await signOut(auth);
             console.log('User signed out');
-            // Redirect will be handled by auth state change
         } catch (error) {
             console.error('Logout error:', error);
         }
@@ -196,28 +180,24 @@ function setupModal(modalId, openBtnId, closeBtnClass) {
     const openBtn = document.getElementById(openBtnId);
     const closeBtns = document.querySelectorAll(`.${closeBtnClass}`);
     
-    if (openBtn && modal) {
+    if (openBtn) {
         openBtn.addEventListener('click', () => {
             modal.classList.add('active');
         });
     }
     
-    if (closeBtns) {
-        closeBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                modal.classList.remove('active');
-            });
+    closeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            modal.classList.remove('active');
         });
-    }
+    });
     
     // Close modal when clicking outside
-    if (modal) {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
-        });
-    }
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    });
 }
 
 // Initialize modals if they exist
