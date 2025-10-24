@@ -19,50 +19,58 @@ document.addEventListener('DOMContentLoaded', function() {
     const showLogin = document.getElementById('showLogin');
     const loginMessage = document.getElementById('loginMessage');
     const registerMessage = document.getElementById('registerMessage');
+    const roleSelectionMessage = document.getElementById('roleSelectionMessage');
     
     // Role selection elements
     const roleCards = document.querySelectorAll('.role-card');
     const confirmRoleBtn = document.getElementById('confirmRoleBtn');
     
     // Registration progress
-    const progressSteps = document.querySelectorAll('.progress-step');
-    const stepIndicators = document.querySelectorAll('.step-indicator');
-    const stepLabels = document.querySelectorAll('.step-label');
-    const progressConnectors = document.querySelectorAll('.progress-connector');
+    const registrationProgress = document.getElementById('registrationProgress');
+    const step1Indicator = document.getElementById('step1Indicator');
+    const step2Indicator = document.getElementById('step2Indicator');
+    const step1Label = document.getElementById('step1Label');
+    const step2Label = document.getElementById('step2Label');
+    const step1Connector = document.getElementById('step1Connector');
 
     let selectedRole = null;
     let tempUserData = null;
 
+    // Initialize password toggles
+    initPasswordToggles();
+
     // Initialize registration progress
     function initializeProgress() {
+        registrationProgress.classList.remove('d-none');
         updateProgress(1); // Start at step 1 (registration)
+    }
+
+    // Hide registration progress
+    function hideProgress() {
+        registrationProgress.classList.add('d-none');
     }
 
     // Update progress steps
     function updateProgress(step) {
-        progressSteps.forEach((progressStep, index) => {
-            const indicator = stepIndicators[index];
-            const label = stepLabels[index];
-            const connector = progressConnectors[index - 1];
+        // Reset all steps
+        step1Indicator.classList.remove('active', 'completed');
+        step2Indicator.classList.remove('active', 'completed');
+        step1Label.classList.remove('active');
+        step2Label.classList.remove('active');
+        step1Connector.classList.remove('completed');
 
-            if (index + 1 < step) {
-                // Completed steps
-                indicator.classList.add('completed');
-                indicator.classList.remove('active');
-                label.classList.add('active');
-                if (connector) connector.classList.add('completed');
-            } else if (index + 1 === step) {
-                // Current step
-                indicator.classList.add('active');
-                indicator.classList.remove('completed');
-                label.classList.add('active');
-            } else {
-                // Future steps
-                indicator.classList.remove('active', 'completed');
-                label.classList.remove('active');
-                if (connector) connector.classList.remove('completed');
-            }
-        });
+        if (step === 1) {
+            // Step 1 active
+            step1Indicator.classList.add('active');
+            step1Label.classList.add('active');
+        } else if (step === 2) {
+            // Step 1 completed, Step 2 active
+            step1Indicator.classList.add('completed');
+            step2Indicator.classList.add('active');
+            step1Label.classList.add('active');
+            step2Label.classList.add('active');
+            step1Connector.classList.add('completed');
+        }
     }
 
     // Switch between login and register forms
@@ -75,6 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
     showLogin.addEventListener('click', (e) => {
         e.preventDefault();
         switchToForm('login');
+        hideProgress();
     });
 
     // Switch form with animation
@@ -100,6 +109,118 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Initialize password visibility toggles
+    function initPasswordToggles() {
+        // Login password toggle
+        document.getElementById('loginPasswordToggle').addEventListener('click', () => {
+            togglePasswordVisibility('loginPassword', 'loginPasswordToggle');
+        });
+
+        // Register password toggle
+        document.getElementById('registerPasswordToggle').addEventListener('click', () => {
+            togglePasswordVisibility('registerPassword', 'registerPasswordToggle');
+        });
+
+        // Register confirm password toggle
+        document.getElementById('registerConfirmPasswordToggle').addEventListener('click', () => {
+            togglePasswordVisibility('registerConfirmPassword', 'registerConfirmPasswordToggle');
+        });
+    }
+
+    // Toggle password visibility
+    function togglePasswordVisibility(inputId, toggleButtonId) {
+        const input = document.getElementById(inputId);
+        const toggleButton = document.getElementById(toggleButtonId);
+        const icon = toggleButton.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
+    // Clear message alerts
+    function clearMessages() {
+        loginMessage.classList.add('d-none');
+        registerMessage.classList.add('d-none');
+        roleSelectionMessage.classList.add('d-none');
+        loginMessage.className = 'alert-message d-none';
+        registerMessage.className = 'alert-message d-none';
+        roleSelectionMessage.className = 'alert-message d-none';
+    }
+
+    // Reset form fields
+    function resetForms() {
+        loginFormElement.reset();
+        registerFormElement.reset();
+        roleSelectionForm.reset();
+        
+        // Reset role selection
+        roleCards.forEach(card => card.classList.remove('selected'));
+        selectedRole = null;
+        confirmRoleBtn.disabled = true;
+        tempUserData = null;
+    }
+
+    // Show message alert
+    function showMessage(element, message, type) {
+        element.textContent = message;
+        element.className = `alert-message ${type}`;
+        element.classList.remove('d-none');
+        
+        // Auto hide success messages after 5 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                element.classList.add('d-none');
+            }, 5000);
+        }
+    }
+
+    // Show global error message
+    function showGlobalError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger position-fixed top-0 start-50 translate-middle-x mt-3';
+        errorDiv.style.zIndex = '9999';
+        errorDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(errorDiv);
+    }
+
+    // Set loading state for button
+    function setLoading(button, isLoading) {
+        const btnText = button.querySelector('.btn-text');
+        const btnLoader = button.querySelector('.btn-loader');
+        
+        if (isLoading) {
+            button.disabled = true;
+            btnText.classList.add('d-none');
+            btnLoader.classList.remove('d-none');
+        } else {
+            button.disabled = false;
+            btnText.classList.remove('d-none');
+            btnLoader.classList.add('d-none');
+        }
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    // Validate password strength
+    function isStrongPassword(password) {
+        return password.length >= 6;
+    }
+
     // Role selection
     roleCards.forEach(card => {
         card.addEventListener('click', () => {
@@ -115,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Confirm role and complete registration
     confirmRoleBtn.addEventListener('click', async () => {
         if (!selectedRole || !tempUserData) {
-            showMessage(registerMessage, 'Please complete all registration steps.', 'error');
+            showMessage(roleSelectionMessage, 'Please select a role to continue.', 'error');
             return;
         }
 
@@ -124,19 +245,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Complete user registration with role
             const userData = {
-                ...tempUserData,
+                uid: tempUserData.uid,
+                name: tempUserData.name,
+                email: tempUserData.email,
                 role: selectedRole,
-                memberSince: selectedRole === 'member' ? new Date() : null,
+                memberSince: selectedRole === 'member' ? firebase.firestore.FieldValue.serverTimestamp() : null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 activeChits: 0,
                 totalInvestment: 0,
                 returnsReceived: 0,
-                creditScore: 'Good'
+                creditScore: 'Good',
+                phone: '',
+                address: ''
             };
 
             await db.collection('users').doc(tempUserData.uid).set(userData);
 
-            showMessage(registerMessage, `Registration successful! Welcome as ${selectedRole === 'manager' ? 'Manager' : 'Member'}.`, 'success');
+            showMessage(roleSelectionMessage, `Registration successful! Welcome as ${selectedRole === 'manager' ? 'Manager' : 'Member'}.`, 'success');
 
             // Redirect based on role
             setTimeout(() => {
@@ -146,15 +271,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         } catch (error) {
             console.error('Error completing registration:', error);
-            showMessage(registerMessage, 'Error completing registration: ' + error.message, 'error');
+            showMessage(roleSelectionMessage, 'Error completing registration: ' + error.message, 'error');
         } finally {
             setLoading(confirmRoleBtn, false);
         }
     });
 
-    // [Keep all the existing functions like clearMessages, showMessage, setLoading, etc.]
-
-    // Register form submission (Updated)
+    // Register form submission
     registerFormElement.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -165,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const acceptTerms = document.getElementById('acceptTerms').checked;
         const submitButton = registerFormElement.querySelector('.btn-auth');
         
-        // Validation (keep existing validation code)
+        // Validation
         if (!name || !email || !password || !confirmPassword) {
             showMessage(registerMessage, 'Please fill in all fields.', 'error');
             return;
@@ -201,9 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tempUserData = {
                 uid: user.uid,
                 name: name,
-                email: email,
-                phone: '', // Will be updated later
-                address: '' // Will be updated later
+                email: email
             };
 
             // Move to role selection step
@@ -238,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Login form submission (Enhanced with role-based redirect)
+    // Login form submission
     loginFormElement.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -283,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     name: user.displayName || user.email.split('@')[0],
                     email: user.email,
                     role: 'member',
-                    memberSince: new Date(),
+                    memberSince: firebase.firestore.FieldValue.serverTimestamp(),
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     activeChits: 0,
                     totalInvestment: 0,
@@ -325,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Check if user is already logged in (Enhanced)
+    // Check if user is already logged in
     auth.onAuthStateChanged(async (user) => {
         if (user && window.location.pathname.includes('auth.html')) {
             // User is logged in and on auth page, redirect based on role
@@ -346,7 +467,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initialize the auth page
-    initializeProgress();
+    // Add input animations
+    document.querySelectorAll('.form-control').forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.classList.add('focused');
+        });
+        
+        input.addEventListener('blur', function() {
+            if (!this.value) {
+                this.parentElement.classList.remove('focused');
+            }
+        });
+    });
+
     console.log('Auth page initialized successfully with role selection');
 });
