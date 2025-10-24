@@ -8,7 +8,8 @@ import {
     doc, 
     query, 
     where,
-    serverTimestamp 
+    serverTimestamp,
+    orderBy
 } from './firebase-config.js';
 
 // Get chit ID from URL parameters
