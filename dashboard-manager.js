@@ -1,3 +1,5 @@
+let currentEditingPaymentId = null;
+
 // Wait for DOM and Firebase to be loaded
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof firebase === 'undefined' || !firebase.auth) {
@@ -82,15 +84,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateChitCode() {
         const chitName = document.getElementById('chitName').value;
         if (chitName) {
+            // Create code from first letters and random numbers
             const words = chitName.split(' ');
             let code = '';
             
+            // Take first letter of each word (max 3 words)
             for (let i = 0; i < Math.min(words.length, 3); i++) {
                 if (words[i].length > 0) {
                     code += words[i][0].toUpperCase();
                 }
             }
             
+            // Add random 4-digit number
             const randomNum = Math.floor(1000 + Math.random() * 9000);
             code += randomNum;
             
@@ -146,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await loadChitFunds();
         await loadMembers();
         await loadPayments();
-        await updateStats();
+        updateStats();
     }
 
     // Load chit funds
@@ -259,154 +264,155 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // View chit details
-    async function viewChitDetails(chitId) {
-        try {
-            const chitDoc = await db.collection('chits').doc(chitId).get();
-            if (!chitDoc.exists) {
-                alert('Chit fund not found!');
-                return;
-            }
+   async function viewChitDetails(chitId) {
+    try {
+        const chitDoc = await db.collection('chits').doc(chitId).get();
+        if (!chitDoc.exists) {
+            alert('Chit fund not found!');
+            return;
+        }
 
-            const chit = chitDoc.data();
-            
-            // Load actual members for this chit
-            const membershipsSnapshot = await db.collection('chitMemberships')
-                .where('chitId', '==', chitId)
-                .get();
+        const chit = chitDoc.data();
+        
+        // Load actual members for this chit
+        const membershipsSnapshot = await db.collection('chitMemberships')
+            .where('chitId', '==', chitId)
+            .get();
 
-            let membersHTML = `
-                <div class="modal fade" id="viewChitModal" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Chit Details - ${chit.name}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <h6>Chit Information</h6>
-                                        <div class="detail-card">
-                                            <div class="detail-item">
-                                                <label>Chit Code:</label>
-                                                <span><strong>${chit.chitCode}</strong></span>
-                                            </div>
-                                            <div class="detail-item">
-                                                <label>Total Amount:</label>
-                                                <span>₹${chit.totalAmount?.toLocaleString()}</span>
-                                            </div>
-                                            <div class="detail-item">
-                                                <label>Monthly Amount:</label>
-                                                <span>₹${chit.monthlyAmount?.toLocaleString()}</span>
-                                            </div>
-                                            <div class="detail-item">
-                                                <label>Duration:</label>
-                                                <span>${chit.duration} months</span>
-                                            </div>
-                                            <div class="detail-item">
-                                                <label>Start Date:</label>
-                                                <span>${chit.startDate}</span>
-                                            </div>
-                                            <div class="detail-item">
-                                                <label>Status:</label>
-                                                <span class="badge ${chit.status === 'active' ? 'bg-success' : 'bg-secondary'}">${chit.status}</span>
-                                            </div>
+        let membersHTML = `
+            <div class="modal fade" id="viewChitModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Chit Details - ${chit.name}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Chit Information</h6>
+                                    <div class="detail-card">
+                                        <div class="detail-item">
+                                            <label>Chit Code:</label>
+                                            <span><strong>${chit.chitCode}</strong></span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Total Amount:</label>
+                                            <span>₹${chit.totalAmount?.toLocaleString()}</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Monthly Amount:</label>
+                                            <span>₹${chit.monthlyAmount?.toLocaleString()}</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Duration:</label>
+                                            <span>${chit.duration} months</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Start Date:</label>
+                                            <span>${chit.startDate}</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Status:</label>
+                                            <span class="badge ${chit.status === 'active' ? 'bg-success' : 'bg-secondary'}">${chit.status}</span>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <h6>Members (${membershipsSnapshot.size})</h6>
-                                            <button class="btn btn-sm btn-outline-primary" onclick="addMemberToChit('${chitId}')">
-                                                <i class="fas fa-plus me-1"></i>Add Member
-                                            </button>
-                                        </div>
-                                        <div class="members-list" style="max-height: 300px; overflow-y: auto;">
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6>Members (${membershipsSnapshot.size})</h6>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="addMemberToChit('${chitId}')">
+                                            <i class="fas fa-plus me-1"></i>Add Member
+                                        </button>
+                                    </div>
+                                    <div class="members-list" style="max-height: 300px; overflow-y: auto;">
+        `;
+
+        if (membershipsSnapshot.empty) {
+            membersHTML += `
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No members joined yet</p>
+                </div>
             `;
-
-            if (membershipsSnapshot.empty) {
-                membersHTML += `
-                    <div class="text-center py-4">
-                        <i class="fas fa-users fa-2x text-muted mb-2"></i>
-                        <p class="text-muted">No members joined yet</p>
-                    </div>
-                `;
-            } else {
-                for (const doc of membershipsSnapshot.docs) {
-                    const membership = doc.data();
-                    
-                    // Get member details
-                    let memberName = 'Unknown Member';
-                    let memberPhone = 'Not available';
-                    
-                    try {
-                        const memberDoc = await db.collection('members').doc(membership.memberId).get();
-                        if (memberDoc.exists) {
-                            const memberData = memberDoc.data();
-                            memberName = memberData.name;
-                            memberPhone = memberData.phone || 'Not provided';
-                        } else {
-                            // Try users collection for registered members
-                            const userDoc = await db.collection('users').doc(membership.memberId).get();
-                            if (userDoc.exists) {
-                                const userData = userDoc.data();
-                                memberName = userData.name || userData.email;
-                            }
+        } else {
+            for (const doc of membershipsSnapshot.docs) {
+                const membership = doc.data();
+                
+                // Get member details
+                let memberName = 'Unknown Member';
+                let memberPhone = 'Not available';
+                
+                try {
+                    const memberDoc = await db.collection('members').doc(membership.memberId).get();
+                    if (memberDoc.exists) {
+                        const memberData = memberDoc.data();
+                        memberName = memberData.name;
+                        memberPhone = memberData.phone || 'Not provided';
+                    } else {
+                        // Try users collection
+                        const userDoc = await db.collection('users').doc(membership.memberId).get();
+                        if (userDoc.exists) {
+                            const userData = userDoc.data();
+                            memberName = userData.name || userData.email;
                         }
-                    } catch (error) {
-                        console.warn('Error loading member details:', error);
                     }
+                } catch (error) {
+                    console.warn('Error loading member details:', error);
+                }
 
-                    membersHTML += `
-                        <div class="member-item">
-                            <div class="member-header">
-                                <div class="member-avatar">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="member-info">
-                                    <h6 class="member-name">${memberName}</h6>
-                                    <small class="text-muted">${memberPhone}</small>
-                                    <br>
-                                    <small class="text-muted">Joined: ${new Date(membership.joinedAt?.seconds * 1000).toLocaleDateString()}</small>
-                                </div>
+                membersHTML += `
+                    <div class="member-item">
+                        <div class="member-header">
+                            <div class="member-avatar">
+                                <i class="fas fa-user"></i>
                             </div>
-                            <div class="member-actions">
-                                <button class="btn btn-sm btn-outline-danger" onclick="removeMemberFromChit('${doc.id}', '${chitId}')">
-                                    <i class="fas fa-times me-1"></i>Remove
-                                </button>
+                            <div class="member-info">
+                                <h6 class="member-name">${memberName}</h6>
+                                <small class="text-muted">${memberPhone}</small>
+                                <br>
+                                <small class="text-muted">Joined: ${new Date(membership.joinedAt?.seconds * 1000).toLocaleDateString()}</small>
                             </div>
                         </div>
-                    `;
-                }
+                        <div class="member-actions">
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeMemberFromChit('${doc.id}', '${chitId}')">
+                                <i class="fas fa-times me-1"></i>Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
             }
+        }
 
-            membersHTML += `
+        membersHTML += `
                                     </div>
                                 </div>
                             </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-primary" onclick="window.editChitFromView('${chitId}')">Edit Chit</button>
-                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="window.editChitFromView('${chitId}')">Edit Chit</button>
                         </div>
                     </div>
                 </div>
-            `;
+            </div>
+        `;
 
-            // Remove existing modal if any
-            const existingModal = document.getElementById('viewChitModal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-
-            document.body.insertAdjacentHTML('beforeend', membersHTML);
-            const viewModal = new bootstrap.Modal(document.getElementById('viewChitModal'));
-            viewModal.show();
-
-        } catch (error) {
-            console.error('Error loading chit details:', error);
-            alert('Error loading chit details: ' + error.message);
+        // Remove existing modal if any
+        const existingModal = document.getElementById('viewChitModal');
+        if (existingModal) {
+            existingModal.remove();
         }
+
+        document.body.insertAdjacentHTML('beforeend', membersHTML);
+        const viewModal = new bootstrap.Modal(document.getElementById('viewChitModal'));
+        viewModal.show();
+
+    } catch (error) {
+        console.error('Error loading chit details:', error);
+        alert('Error loading chit details: ' + error.message);
     }
+}
 
     // Edit chit fund
     async function editChit(chitId) {
@@ -522,43 +528,67 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Load members - FIXED VERSION
-    async function loadMembers() {
-        try {
-            // Load only members from members collection (manager's own members)
-            const membersSnapshot = await db.collection('members')
-                .where('managerId', '==', currentUser.uid)
-                .orderBy('joinedAt', 'desc')
-                .get();
+    // Load members with CRUD operations
+   async function loadMembers() {
+    try {
+        // Load both members collection and users with member role
+        const [membersSnapshot, usersSnapshot] = await Promise.all([
+            db.collection('members').where('managerId', '==', currentUser.uid).get(),
+            db.collection('users').where('role', '==', 'member').get()
+        ]);
 
-            membersList.innerHTML = '';
+        membersList.innerHTML = '';
 
-            if (membersSnapshot.empty) {
-                membersList.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">No Members Found</h5>
-                        <p class="text-muted">Add members to your chit funds</p>
-                    </div>
-                `;
-                return;
+        const allMembers = new Map();
+
+        // Add members from members collection
+        membersSnapshot.forEach(doc => {
+            const member = { id: doc.id, ...doc.data() };
+            allMembers.set(member.id, member);
+        });
+
+        // Add members from users collection (for registered users)
+        usersSnapshot.forEach(doc => {
+            const user = { id: doc.id, ...doc.data() };
+            if (!allMembers.has(user.id)) {
+                allMembers.set(user.id, {
+                    id: user.id,
+                    name: user.name || user.email,
+                    email: user.email,
+                    phone: user.phone || 'Not provided',
+                    joinedAt: user.createdAt,
+                    activeChits: 0,
+                    totalPaid: 0,
+                    status: 'active'
+                });
             }
+        });
 
-            // Render all members
-            membersSnapshot.forEach(doc => {
-                const member = { id: doc.id, ...doc.data() };
-                renderMember(member);
-            });
-
-        } catch (error) {
-            console.error('Error loading members:', error);
+        if (allMembers.size === 0) {
             membersList.innerHTML = `
-                <div class="alert alert-danger">
-                    Error loading members: ${error.message}
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Members Found</h5>
+                    <p class="text-muted">Add members to your chit funds</p>
                 </div>
             `;
+            return;
         }
+
+        // Render all members
+        allMembers.forEach(member => {
+            renderMember(member);
+        });
+
+    } catch (error) {
+        console.error('Error loading members:', error);
+        membersList.innerHTML = `
+            <div class="alert alert-danger">
+                Error loading members: ${error.message}
+            </div>
+        `;
     }
+}
 
     // Render member with CRUD operations
     function renderMember(member) {
@@ -572,7 +602,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="member-info">
                     <h5 class="member-name">${member.name}</h5>
                     <p class="member-contact">
-                        <i class="fas fa-phone me-1"></i>${member.phone || 'Not provided'}
+                        <i class="fas fa-phone me-1"></i>${member.phone}
                     </p>
                     <small class="text-muted">Joined: ${member.joinedAt ? 
                         new Date(member.joinedAt.seconds * 1000).toLocaleDateString() : 'Recently'}</small>
@@ -653,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>
                                             <div class="detail-item">
                                                 <label>Phone:</label>
-                                                <span>${member.phone || 'Not provided'}</span>
+                                                <span>${member.phone}</span>
                                             </div>
                                             <div class="detail-item">
                                                 <label>Joined Date:</label>
@@ -665,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>
                                             <div class="detail-item">
                                                 <label>Status:</label>
-                                                <span class="badge ${member.status === 'active' ? 'bg-success' : 'bg-secondary'}">${member.status || 'active'}</span>
+                                                <span class="badge ${member.status === 'active' ? 'bg-success' : 'bg-secondary'}">${member.status}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -751,12 +781,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                     <div class="mb-3">
                                         <label for="editMemberPhone" class="form-label">Phone Number *</label>
-                                        <input type="tel" class="form-control" id="editMemberPhone" value="${member.phone || ''}" required>
+                                        <input type="tel" class="form-control" id="editMemberPhone" value="${member.phone}" required>
                                     </div>
                                     <div class="mb-3">
                                         <label for="editMemberStatus" class="form-label">Status</label>
                                         <select class="form-select" id="editMemberStatus">
-                                            <option value="active" ${(member.status === 'active' || !member.status) ? 'selected' : ''}>Active</option>
+                                            <option value="active" ${member.status === 'active' ? 'selected' : ''}>Active</option>
                                             <option value="inactive" ${member.status === 'inactive' ? 'selected' : ''}>Inactive</option>
                                         </select>
                                     </div>
@@ -798,7 +828,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Update member - FIXED VERSION
+    // Update member
     async function updateMember(memberId) {
         const name = document.getElementById('editMemberName').value;
         const phone = document.getElementById('editMemberPhone').value;
@@ -828,7 +858,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             showSuccess('Member updated successfully!');
             await loadMembers();
-            await updateStats();
 
         } catch (error) {
             console.error('Error updating member:', error);
@@ -838,7 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Delete member - FIXED VERSION
+    // Delete member
     async function deleteMember(memberId) {
         if (confirm('Are you sure you want to delete this member? This action cannot be undone.')) {
             try {
@@ -852,30 +881,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         return;
                     }
 
-                    // Remove member from all chit funds and update chit counts
+                    // Remove member from all chit funds
                     const deletePromises = [];
-                    membershipsSnapshot.forEach(async (doc) => {
-                        const membership = doc.data();
+                    membershipsSnapshot.forEach(doc => {
                         deletePromises.push(db.collection('chitMemberships').doc(doc.id).delete());
-                        
-                        // Update chit member count
-                        const chitDoc = await db.collection('chits').doc(membership.chitId).get();
-                        if (chitDoc.exists) {
-                            const chit = chitDoc.data();
-                            await db.collection('chits').doc(membership.chitId).update({
-                                currentMembers: Math.max(0, (chit.currentMembers || 0) - 1)
-                            });
-                        }
                     });
                     await Promise.all(deletePromises);
                 }
 
-                // Delete the member
                 await db.collection('members').doc(memberId).delete();
-                
                 showSuccess('Member deleted successfully!');
                 await loadMembers();
-                await loadChitFunds(); // Reload chits to update member counts
                 await updateStats();
 
             } catch (error) {
@@ -886,368 +902,488 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Load payments
-    async function loadPayments() {
-        try {
-            const paymentsSnapshot = await db.collection('payments')
-                .where('managerId', '==', currentUser.uid)
-                .orderBy('paymentDate', 'desc')
-                .limit(50)
-                .get();
-            
-            paymentsList.innerHTML = '';
-            
-            if (paymentsSnapshot.empty) {
-                paymentsList.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">No Payments Recorded</h5>
-                        <p class="text-muted">Record payments from members</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Add summary card
-            let totalAmount = 0;
-            paymentsSnapshot.forEach(doc => {
-                totalAmount += doc.data().amount || 0;
-            });
-
-            const summaryHTML = `
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="summary-card text-success">
-                            <i class="fas fa-rupee-sign"></i>
-                            <span>Total Collected</span>
-                            <strong>₹${totalAmount.toLocaleString()}</strong>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="summary-card text-primary">
-                            <i class="fas fa-receipt"></i>
-                            <span>Total Payments</span>
-                            <strong>${paymentsSnapshot.size}</strong>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            paymentsList.innerHTML = summaryHTML;
-
-            // Render payment items
-            paymentsSnapshot.forEach(doc => {
-                const payment = { id: doc.id, ...doc.data() };
-                renderPayment(payment);
-            });
-            
-        } catch (error) {
-            console.error('Error loading payments:', error);
+ async function loadPayments() {
+    try {
+        const paymentsSnapshot = await db.collection('payments')
+            .where('managerId', '==', currentUser.uid)
+            .orderBy('paymentDate', 'desc')
+            .limit(50)
+            .get();
+        
+        paymentsList.innerHTML = '';
+        
+        if (paymentsSnapshot.empty) {
             paymentsList.innerHTML = `
-                <div class="alert alert-danger">
-                    Error loading payments: ${error.message}
+                <div class="text-center py-5">
+                    <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Payments Recorded</h5>
+                    <p class="text-muted">Record payments from members</p>
                 </div>
             `;
+            return;
         }
-    }
+        
+        // Add summary card
+        let totalAmount = 0;
+        paymentsSnapshot.forEach(doc => {
+            totalAmount += doc.data().amount || 0;
+        });
 
-    // Render payment item
-    function renderPayment(payment) {
-        const paymentElement = document.createElement('div');
-        paymentElement.className = 'payment-item';
-        paymentElement.innerHTML = `
-            <div class="payment-header">
-                <div class="payment-info">
-                    <h5 class="payment-member">${payment.memberName || 'Unknown Member'}</h5>
-                    <p class="payment-chit">${payment.chitName || 'Unknown Chit'}</p>
+        const summaryHTML = `
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="summary-card text-success">
+                        <i class="fas fa-rupee-sign"></i>
+                        <span>Total Collected</span>
+                        <strong>₹${totalAmount.toLocaleString()}</strong>
+                    </div>
                 </div>
-                <div class="payment-amount">
-                    <span class="amount">₹${payment.amount?.toLocaleString()}</span>
-                    <span class="badge ${payment.status === 'paid' ? 'bg-success' : 'bg-warning'}">
-                        ${payment.status}
-                    </span>
+                <div class="col-md-6">
+                    <div class="summary-card text-primary">
+                        <i class="fas fa-receipt"></i>
+                        <span>Total Payments</span>
+                        <strong>${paymentsSnapshot.size}</strong>
+                    </div>
                 </div>
-            </div>
-            <div class="payment-details">
-                <div class="detail">
-                    <label>Date:</label>
-                    <span>${payment.paymentDate}</span>
-                </div>
-                <div class="detail">
-                    <label>Month:</label>
-                    <span>${payment.month}</span>
-                </div>
-                <div class="detail">
-                    <label>Method:</label>
-                    <span>${payment.paymentMethod || 'Cash'}</span>
-                </div>
-            </div>
-            <div class="payment-actions">
-                <button class="btn btn-sm btn-outline-primary view-payment-btn" data-payment-id="${payment.id}">
-                    <i class="fas fa-eye me-1"></i>View
-                </button>
-                <button class="btn btn-sm btn-outline-warning edit-payment-btn" data-payment-id="${payment.id}">
-                    <i class="fas fa-edit me-1"></i>Edit
-                </button>
-                <button class="btn btn-sm btn-outline-danger delete-payment-btn" data-payment-id="${payment.id}">
-                    <i class="fas fa-trash me-1"></i>Delete
-                </button>
             </div>
         `;
         
-        paymentsList.appendChild(paymentElement);
+        paymentsList.innerHTML = summaryHTML;
+
+        // Render payment items
+        paymentsSnapshot.forEach(doc => {
+            const payment = { id: doc.id, ...doc.data() };
+            renderPayment(payment);
+        });
         
-        // Add event listeners
-        attachPaymentEventListeners(paymentElement, payment);
+    } catch (error) {
+        console.error('Error loading payments:', error);
+        paymentsList.innerHTML = `
+            <div class="alert alert-danger">
+                Error loading payments: ${error.message}
+            </div>
+        `;
     }
-
+}
+    
+  function renderPayment(payment) {
+    const paymentElement = document.createElement('div');
+    paymentElement.className = 'payment-item';
+    paymentElement.innerHTML = `
+        <div class="payment-header">
+            <div>
+                <h6 class="payment-chit mb-1">${payment.chitName} - ${payment.memberName}</h6>
+                <p class="mb-0 text-muted small">Month ${payment.month} • ${payment.paymentDate}</p>
+            </div>
+            <div class="payment-amount">
+                <strong class="text-success">₹${payment.amount?.toLocaleString()}</strong>
+            </div>
+        </div>
+        <div class="payment-actions mt-2">
+            <button class="btn btn-sm btn-outline-primary view-payment-btn" data-payment-id="${payment.id}">
+                <i class="fas fa-eye me-1"></i>View
+            </button>
+            <button class="btn btn-sm btn-outline-warning edit-payment-btn" data-payment-id="${payment.id}">
+                <i class="fas fa-edit me-1"></i>Edit
+            </button>
+            <button class="btn btn-sm btn-outline-danger delete-payment-btn" data-payment-id="${payment.id}">
+                <i class="fas fa-trash me-1"></i>Delete
+            </button>
+        </div>
+    `;
+    
+    paymentsList.appendChild(paymentElement);
+    
+    // Add event listeners
+    attachPaymentEventListeners(paymentElement, payment);
+}
     // Attach event listeners to payment actions
-    function attachPaymentEventListeners(element, payment) {
-        const viewBtn = element.querySelector('.view-payment-btn');
-        const editBtn = element.querySelector('.edit-payment-btn');
-        const deleteBtn = element.querySelector('.delete-payment-btn');
+function attachPaymentEventListeners(element, payment) {
+    const viewBtn = element.querySelector('.view-payment-btn');
+    const editBtn = element.querySelector('.edit-payment-btn');
+    const deleteBtn = element.querySelector('.delete-payment-btn');
 
-        viewBtn.addEventListener('click', () => viewPaymentDetails(payment.id));
-        editBtn.addEventListener('click', () => editPayment(payment.id));
-        deleteBtn.addEventListener('click', () => deletePayment(payment.id));
-    }
+    viewBtn.addEventListener('click', () => viewPaymentDetails(payment.id));
+    editBtn.addEventListener('click', () => editPayment(payment.id));
+    deleteBtn.addEventListener('click', () => deletePayment(payment.id));
+}
 
     // View payment details
-    async function viewPaymentDetails(paymentId) {
-        try {
-            const paymentDoc = await db.collection('payments').doc(paymentId).get();
-            if (!paymentDoc.exists) {
-                alert('Payment not found!');
-                return;
-            }
-
-            const payment = paymentDoc.data();
-            
-            const paymentHTML = `
-                <div class="modal fade" id="viewPaymentModal" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Payment Details</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="detail-card">
-                                    <div class="detail-item">
-                                        <label>Member:</label>
-                                        <span>${payment.memberName}</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <label>Chit Fund:</label>
-                                        <span>${payment.chitName}</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <label>Amount:</label>
-                                        <span class="text-success"><strong>₹${payment.amount?.toLocaleString()}</strong></span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <label>Payment Date:</label>
-                                        <span>${payment.paymentDate}</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <label>Month:</label>
-                                        <span>${payment.month}</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <label>Payment Method:</label>
-                                        <span>${payment.paymentMethod || 'Cash'}</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <label>Status:</label>
-                                        <span class="badge ${payment.status === 'paid' ? 'bg-success' : 'bg-warning'}">${payment.status}</span>
-                                    </div>
-                                    ${payment.notes ? `
-                                    <div class="detail-item">
-                                        <label>Notes:</label>
-                                        <span>${payment.notes}</span>
-                                    </div>
-                                    ` : ''}
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-primary" onclick="window.editPaymentFromView('${paymentId}')">Edit Payment</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Remove existing modal if any
-            const existingModal = document.getElementById('viewPaymentModal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-
-            document.body.insertAdjacentHTML('beforeend', paymentHTML);
-            const viewModal = new bootstrap.Modal(document.getElementById('viewPaymentModal'));
-            viewModal.show();
-
-        } catch (error) {
-            console.error('Error loading payment details:', error);
-            alert('Error loading payment details: ' + error.message);
-        }
-    }
-
-    // Edit payment
-    async function editPayment(paymentId) {
-        try {
-            const paymentDoc = await db.collection('payments').doc(paymentId).get();
-            if (!paymentDoc.exists) {
-                alert('Payment not found!');
-                return;
-            }
-
-            const payment = paymentDoc.data();
-
-            // Create edit modal HTML
-            const editModalHTML = `
-                <div class="modal fade" id="editPaymentModal" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Edit Payment</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <form id="editPaymentForm">
-                                    <input type="hidden" id="editPaymentId" value="${paymentId}">
-                                    <div class="mb-3">
-                                        <label for="editPaymentAmount" class="form-label">Amount *</label>
-                                        <input type="number" class="form-control" id="editPaymentAmount" value="${payment.amount}" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="editPaymentDate" class="form-label">Payment Date *</label>
-                                        <input type="date" class="form-control" id="editPaymentDate" value="${payment.paymentDate}" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="editPaymentMonth" class="form-label">Month *</label>
-                                        <input type="month" class="form-control" id="editPaymentMonth" value="${payment.month}" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="editPaymentMethod" class="form-label">Payment Method</label>
-                                        <select class="form-select" id="editPaymentMethod">
-                                            <option value="cash" ${payment.paymentMethod === 'cash' ? 'selected' : ''}>Cash</option>
-                                            <option value="bank_transfer" ${payment.paymentMethod === 'bank_transfer' ? 'selected' : ''}>Bank Transfer</option>
-                                            <option value="upi" ${payment.paymentMethod === 'upi' ? 'selected' : ''}>UPI</option>
-                                            <option value="cheque" ${payment.paymentMethod === 'cheque' ? 'selected' : ''}>Cheque</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="editPaymentStatus" class="form-label">Status</label>
-                                        <select class="form-select" id="editPaymentStatus">
-                                            <option value="paid" ${payment.status === 'paid' ? 'selected' : ''}>Paid</option>
-                                            <option value="pending" ${payment.status === 'pending' ? 'selected' : ''}>Pending</option>
-                                            <option value="overdue" ${payment.status === 'overdue' ? 'selected' : ''}>Overdue</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="editPaymentNotes" class="form-label">Notes</label>
-                                        <textarea class="form-control" id="editPaymentNotes" rows="3">${payment.notes || ''}</textarea>
-                                    </div>
-                                </form>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-primary" id="updatePaymentBtn">Update Payment</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Remove existing modal if any
-            const existingModal = document.getElementById('editPaymentModal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-
-            document.body.insertAdjacentHTML('beforeend', editModalHTML);
-            
-            // Add event listener for update button
-            document.getElementById('updatePaymentBtn').addEventListener('click', () => updatePayment(paymentId));
-            
-            const editModal = new bootstrap.Modal(document.getElementById('editPaymentModal'));
-            editModal.show();
-
-            // Close view modal if open
-            const viewModal = document.getElementById('viewPaymentModal');
-            if (viewModal) {
-                const bsModal = bootstrap.Modal.getInstance(viewModal);
-                if (bsModal) bsModal.hide();
-            }
-
-        } catch (error) {
-            console.error('Error loading payment for editing:', error);
-            alert('Error loading payment for editing: ' + error.message);
-        }
-    }
-
-    // Update payment
-    async function updatePayment(paymentId) {
-        const amount = parseFloat(document.getElementById('editPaymentAmount').value);
-        const paymentDate = document.getElementById('editPaymentDate').value;
-        const month = document.getElementById('editPaymentMonth').value;
-        const paymentMethod = document.getElementById('editPaymentMethod').value;
-        const status = document.getElementById('editPaymentStatus').value;
-        const notes = document.getElementById('editPaymentNotes').value;
-
-        if (!amount || !paymentDate || !month) {
-            alert('Please fill all required fields');
+async function viewPaymentDetails(paymentId) {
+    try {
+        const paymentDoc = await db.collection('payments').doc(paymentId).get();
+        if (!paymentDoc.exists) {
+            alert('Payment not found!');
             return;
         }
 
-        try {
-            setLoading(document.getElementById('updatePaymentBtn'), true);
+        const payment = paymentDoc.data();
 
-            const updateData = {
-                amount: amount,
-                paymentDate: paymentDate,
-                month: month,
-                paymentMethod: paymentMethod,
-                status: status,
-                notes: notes,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
+        const viewHTML = `
+            <div class="modal fade" id="viewPaymentModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Payment Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="detail-card">
+                                <div class="detail-item">
+                                    <label>Member:</label>
+                                    <span>${payment.memberName}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Chit Fund:</label>
+                                    <span>${payment.chitName}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Month:</label>
+                                    <span>${payment.month}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Amount:</label>
+                                    <span class="text-success">₹${payment.amount?.toLocaleString()}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Payment Date:</label>
+                                    <span>${payment.paymentDate}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Recorded On:</label>
+                                    <span>${payment.createdAt ? new Date(payment.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="window.editPaymentFromView('${paymentId}')">Edit Payment</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
 
-            await db.collection('payments').doc(paymentId).update(updateData);
-
-            // Close modal
-            const editModal = document.getElementById('editPaymentModal');
-            const bsModal = bootstrap.Modal.getInstance(editModal);
-            bsModal.hide();
-
-            showSuccess('Payment updated successfully!');
-            await loadPayments();
-            await updateStats();
-
-        } catch (error) {
-            console.error('Error updating payment:', error);
-            alert('Error updating payment: ' + error.message);
-        } finally {
-            setLoading(document.getElementById('updatePaymentBtn'), false);
+        // Remove existing modal if any
+        const existingModal = document.getElementById('viewPaymentModal');
+        if (existingModal) {
+            existingModal.remove();
         }
+
+        document.body.insertAdjacentHTML('beforeend', viewHTML);
+        const viewModal = new bootstrap.Modal(document.getElementById('viewPaymentModal'));
+        viewModal.show();
+
+    } catch (error) {
+        console.error('Error loading payment details:', error);
+        alert('Error loading payment details: ' + error.message);
+    }
+}
+
+    // Edit payment
+async function editPayment(paymentId) {
+    try {
+        const paymentDoc = await db.collection('payments').doc(paymentId).get();
+        if (!paymentDoc.exists) {
+            alert('Payment not found!');
+            return;
+        }
+
+        const payment = paymentDoc.data();
+        currentEditingPaymentId = paymentId;
+
+        // Load current chits and members for dropdowns
+        const [chitsSnapshot, membersSnapshot] = await Promise.all([
+            db.collection('chits').where('managerId', '==', currentUser.uid).get(),
+            db.collection('members').where('managerId', '==', currentUser.uid).get()
+        ]);
+
+        let chitOptions = '';
+        let memberOptions = '';
+
+        chitsSnapshot.forEach(doc => {
+            const chit = doc.data();
+            chitOptions += `<option value="${doc.id}" ${doc.id === payment.chitId ? 'selected' : ''}>${chit.name}</option>`;
+        });
+
+        membersSnapshot.forEach(doc => {
+            const member = doc.data();
+            memberOptions += `<option value="${doc.id}" ${doc.id === payment.memberId ? 'selected' : ''}>${member.name} (${member.phone})</option>`;
+        });
+
+        const editHTML = `
+            <div class="modal fade" id="editPaymentModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Payment</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editPaymentForm">
+                                <div class="mb-3">
+                                    <label for="editPaymentMember" class="form-label">Member *</label>
+                                    <select class="form-select" id="editPaymentMember" required>
+                                        <option value="">Select member...</option>
+                                        ${memberOptions}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editPaymentChit" class="form-label">Chit Fund *</label>
+                                    <select class="form-select" id="editPaymentChit" required>
+                                        <option value="">Select chit fund...</option>
+                                        ${chitOptions}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editPaymentMonth" class="form-label">Month *</label>
+                                    <input type="number" class="form-control" id="editPaymentMonth" value="${payment.month}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editPaymentAmount" class="form-label">Amount *</label>
+                                    <input type="number" class="form-control" id="editPaymentAmount" value="${payment.amount}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editPaymentDate" class="form-label">Payment Date *</label>
+                                    <input type="date" class="form-control" id="editPaymentDate" value="${payment.paymentDate}" required>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="updatePaymentBtn">Update Payment</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('editPaymentModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        document.body.insertAdjacentHTML('beforeend', editHTML);
+        
+        // Add event listener
+        document.getElementById('updatePaymentBtn').addEventListener('click', updatePayment);
+        
+        const editModal = new bootstrap.Modal(document.getElementById('editPaymentModal'));
+        editModal.show();
+
+        // Close view modal if open
+        const viewModal = document.getElementById('viewPaymentModal');
+        if (viewModal) {
+            const bsModal = bootstrap.Modal.getInstance(viewModal);
+            if (bsModal) bsModal.hide();
+        }
+
+    } catch (error) {
+        console.error('Error loading payment for editing:', error);
+        alert('Error loading payment for editing: ' + error.message);
+    }
+}
+
+    // Update payment
+async function updatePayment() {
+    const memberId = document.getElementById('editPaymentMember').value;
+    const chitId = document.getElementById('editPaymentChit').value;
+    const month = parseInt(document.getElementById('editPaymentMonth').value);
+    const amount = parseFloat(document.getElementById('editPaymentAmount').value);
+    const paymentDate = document.getElementById('editPaymentDate').value;
+
+    if (!memberId || !chitId || !month || !amount || !paymentDate) {
+        alert('Please fill all required fields');
+        return;
     }
 
-    // Delete payment
-    async function deletePayment(paymentId) {
-        if (confirm('Are you sure you want to delete this payment record?')) {
-            try {
-                await db.collection('payments').doc(paymentId).delete();
-                showSuccess('Payment deleted successfully!');
-                await loadPayments();
-                await updateStats();
+    try {
+        setLoading(document.getElementById('updatePaymentBtn'), true);
 
-            } catch (error) {
-                console.error('Error deleting payment:', error);
-                alert('Error deleting payment: ' + error.message);
+        // Get current payment data to calculate difference
+        const currentPaymentDoc = await db.collection('payments').doc(currentEditingPaymentId).get();
+        if (!currentPaymentDoc.exists) {
+            alert('Payment not found!');
+            return;
+        }
+
+        const currentPayment = currentPaymentDoc.data();
+        const amountDifference = amount - currentPayment.amount;
+
+        // Get member and chit details
+        const [memberDoc, chitDoc] = await Promise.all([
+            db.collection('members').doc(memberId).get(),
+            db.collection('chits').doc(chitId).get()
+        ]);
+
+        if (!memberDoc.exists || !chitDoc.exists) {
+            alert('Member or chit fund not found!');
+            return;
+        }
+
+        const member = memberDoc.data();
+        const chit = chitDoc.data();
+
+        const updateData = {
+            memberId: memberId,
+            memberName: member.name,
+            chitId: chitId,
+            chitName: chit.name,
+            month: month,
+            amount: amount,
+            paymentDate: paymentDate,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('payments').doc(currentEditingPaymentId).update(updateData);
+
+        // Update member's total paid if amount changed
+        if (amountDifference !== 0) {
+            await db.collection('members').doc(memberId).update({
+                totalPaid: (member.totalPaid || 0) + amountDifference
+            });
+        }
+
+        // Close modal
+        const editModal = document.getElementById('editPaymentModal');
+        const bsModal = bootstrap.Modal.getInstance(editModal);
+        bsModal.hide();
+
+        showSuccess('Payment updated successfully!');
+        await loadPayments();
+        await updateStats();
+
+    } catch (error) {
+        console.error('Error updating payment:', error);
+        alert('Error updating payment: ' + error.message);
+    } finally {
+        setLoading(document.getElementById('updatePaymentBtn'), false);
+        currentEditingPaymentId = null;
+    }
+}
+
+// Delete payment
+async function deletePayment(paymentId) {
+    if (!confirm('Are you sure you want to delete this payment record? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        // Get payment details to update member's total paid
+        const paymentDoc = await db.collection('payments').doc(paymentId).get();
+        if (!paymentDoc.exists) {
+            alert('Payment not found!');
+            return;
+        }
+
+        const payment = paymentDoc.data();
+
+        // Delete the payment
+        await db.collection('payments').doc(paymentId).delete();
+
+        // Update member's total paid
+        if (payment.memberId) {
+            const memberDoc = await db.collection('members').doc(payment.memberId).get();
+            if (memberDoc.exists) {
+                const member = memberDoc.data();
+                await db.collection('members').doc(payment.memberId).update({
+                    totalPaid: Math.max(0, (member.totalPaid || 0) - payment.amount)
+                });
             }
         }
+
+        showSuccess('Payment deleted successfully!');
+        await loadPayments();
+        await updateStats();
+
+    } catch (error) {
+        console.error('Error deleting payment:', error);
+        alert('Error deleting payment: ' + error.message);
     }
+}
+
+    // Update dashboard statistics
+    async function updateStats() {
+        try {
+            // Count members
+            const membersSnapshot = await db.collection('members')
+                .where('managerId', '==', currentUser.uid)
+                .get();
+            totalMembersElement.textContent = membersSnapshot.size;
+
+            // Count active chits
+            const chitsSnapshot = await db.collection('chits')
+                .where('managerId', '==', currentUser.uid)
+                .where('status', '==', 'active')
+                .get();
+            activeChitsElement.textContent = chitsSnapshot.size;
+
+            // Calculate monthly collection
+            let totalCollection = 0;
+            chitsSnapshot.forEach(doc => {
+                const chit = doc.data();
+                totalCollection += chit.monthlyAmount * (chit.currentMembers || 0);
+            });
+            totalCollectionElement.textContent = `₹${totalCollection.toLocaleString()}`;
+
+            // Count auctions done
+            const auctionsSnapshot = await db.collection('auctions')
+                .where('managerId', '==', currentUser.uid)
+                .get();
+            auctionsDoneElement.textContent = auctionsSnapshot.size;
+
+        } catch (error) {
+            console.error('Error updating stats:', error);
+        }
+    }
+
+    // Calculate chit progress
+    function calculateChitProgress(chit) {
+        if (!chit.startDate) {
+            return { monthsPassed: 0, percentage: 0 };
+        }
+
+        try {
+            const startDate = new Date(chit.startDate);
+            const currentDate = new Date();
+            const monthsPassed = Math.max(0, Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 30.44)));
+            const percentage = Math.min((monthsPassed / chit.duration) * 100, 100);
+            
+            return {
+                monthsPassed: Math.min(monthsPassed, chit.duration),
+                percentage: Math.round(percentage)
+            };
+        } catch (error) {
+            return { monthsPassed: 0, percentage: 0 };
+        }
+    }
+
+    // Event listeners for main buttons
+    createChitBtn.addEventListener('click', () => {
+        createChitModal.show();
+    });
+
+    addMemberBtn.addEventListener('click', () => {
+        addMemberModal.show();
+    });
+
+    recordAuctionBtn.addEventListener('click', async () => {
+        await showRecordAuctionModal();
+    });
+
+    recordPaymentBtn.addEventListener('click', async () => {
+        await showRecordPaymentModal();
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+        try {
+            await auth.signOut();
+            window.location.href = 'auth.html';
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    });
 
     // Create chit fund
     async function createChitFund() {
@@ -1255,13 +1391,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const chitCode = document.getElementById('chitCode').value;
         const totalAmount = parseFloat(document.getElementById('totalAmount').value);
         const duration = parseInt(document.getElementById('duration').value);
-        const monthlyAmount = totalAmount / duration;
-        const startDate = document.getElementById('startDate').value;
 
-        if (!name || !chitCode || !totalAmount || !duration || !startDate) {
+        if (!name || !chitCode || !totalAmount || !duration) {
             alert('Please fill all required fields');
             return;
         }
+
+        const monthlyAmount = totalAmount / duration;
 
         try {
             setLoading(document.getElementById('saveChitBtn'), true);
@@ -1282,20 +1418,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalAmount: totalAmount,
                 duration: duration,
                 monthlyAmount: monthlyAmount,
-                startDate: startDate,
+                startDate: new Date().toISOString().split('T')[0],
+                managerId: currentUser.uid,
                 currentMembers: 0,
                 status: 'active',
-                managerId: currentUser.uid,
-                managerName: userData.name,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             await db.collection('chits').add(chitData);
 
-            createChitModal.hide();
             document.getElementById('createChitForm').reset();
-            showSuccess('Chit fund created successfully!');
+            createChitModal.hide();
+            
+            showSuccess('Chit fund created successfully! Members can join using code: ' + chitCode);
             
             await loadChitFunds();
             await updateStats();
@@ -1308,7 +1443,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Add member - FIXED VERSION
+    // Add member
     async function addMember() {
         const name = document.getElementById('memberName').value;
         const phone = document.getElementById('memberPhone').value;
@@ -1321,33 +1456,21 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             setLoading(document.getElementById('saveMemberBtn'), true);
 
-            // Check if member with same phone already exists for this manager
-            const existingMember = await db.collection('members')
-                .where('managerId', '==', currentUser.uid)
-                .where('phone', '==', phone)
-                .get();
-
-            if (!existingMember.empty) {
-                alert('A member with this phone number already exists.');
-                return;
-            }
-
             const memberData = {
                 name: name,
                 phone: phone,
                 managerId: currentUser.uid,
-                managerName: userData.name,
                 activeChits: 0,
                 totalPaid: 0,
                 status: 'active',
-                joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                joinedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             await db.collection('members').add(memberData);
 
-            addMemberModal.hide();
             document.getElementById('addMemberForm').reset();
+            addMemberModal.hide();
+            
             showSuccess('Member added successfully!');
             
             await loadMembers();
@@ -1361,16 +1484,85 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Show record auction modal
+    async function showRecordAuctionModal() {
+        try {
+            // Load chits and members for dropdowns
+            const [chitsSnapshot, membersSnapshot] = await Promise.all([
+                db.collection('chits').where('managerId', '==', currentUser.uid).where('status', '==', 'active').get(),
+                db.collection('members').where('managerId', '==', currentUser.uid).get()
+            ]);
+
+            const auctionChitSelect = document.getElementById('auctionChit');
+            const auctionMemberSelect = document.getElementById('auctionMember');
+
+            auctionChitSelect.innerHTML = '<option value="">Choose a chit fund...</option>';
+            auctionMemberSelect.innerHTML = '<option value="">Choose a member...</option>';
+
+            chitsSnapshot.forEach(doc => {
+                const chit = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = `${chit.name} (₹${chit.totalAmount.toLocaleString()})`;
+                auctionChitSelect.appendChild(option);
+            });
+
+            membersSnapshot.forEach(doc => {
+                const member = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = `${member.name} (${member.phone})`;
+                auctionMemberSelect.appendChild(option);
+            });
+
+            recordAuctionModal.show();
+        } catch (error) {
+            console.error('Error loading auction data:', error);
+            alert('Error loading data: ' + error.message);
+        }
+    }
+
+    // Update auction preview
+    async function updateAuctionPreview() {
+        const chitId = document.getElementById('auctionChit').value;
+        const month = parseInt(document.getElementById('auctionMonth').value);
+        
+        if (!chitId || !month) return;
+
+        try {
+            const chitDoc = await db.collection('chits').doc(chitId).get();
+            if (!chitDoc.exists) return;
+
+            const chit = chitDoc.data();
+            const baseMonthlyAmount = chit.monthlyAmount;
+            
+            // Calculate reduced monthly amount based on auction month
+            // Later auctions get lower monthly payments
+            const reductionPercentage = Math.min((month - 1) * 5, 40); // Max 40% reduction
+            const reducedMonthlyAmount = baseMonthlyAmount * (1 - reductionPercentage / 100);
+            const discount = baseMonthlyAmount - reducedMonthlyAmount;
+
+            const preview = document.getElementById('auctionPreview');
+            const previewMonthlyAmount = document.getElementById('previewMonthlyAmount');
+            const previewDiscount = document.getElementById('previewDiscount');
+
+            previewMonthlyAmount.textContent = `Monthly Payment: ₹${reducedMonthlyAmount.toFixed(0)} (was ₹${baseMonthlyAmount.toFixed(0)})`;
+            previewDiscount.textContent = `Discount: ₹${discount.toFixed(0)} per month (${reductionPercentage}%)`;
+            
+            preview.classList.remove('d-none');
+        } catch (error) {
+            console.error('Error updating auction preview:', error);
+        }
+    }
+
     // Record auction
     async function recordAuction() {
         const chitId = document.getElementById('auctionChit').value;
-        const winnerId = document.getElementById('auctionWinner').value;
-        const month = document.getElementById('auctionMonth').value;
-        const auctionAmount = parseFloat(document.getElementById('auctionAmount').value);
-        const commission = parseFloat(document.getElementById('commission').value);
-        const auctionDate = document.getElementById('auctionDate').value;
+        const memberId = document.getElementById('auctionMember').value;
+        const month = parseInt(document.getElementById('auctionMonth').value);
+        const amount = parseFloat(document.getElementById('auctionAmount').value);
 
-        if (!chitId || !winnerId || !month || !auctionAmount || !commission || !auctionDate) {
+        if (!chitId || !memberId || !month || !amount) {
             alert('Please fill all required fields');
             return;
         }
@@ -1378,22 +1570,47 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             setLoading(document.getElementById('saveAuctionBtn'), true);
 
+            // Get chit and member details
+            const [chitDoc, memberDoc] = await Promise.all([
+                db.collection('chits').doc(chitId).get(),
+                db.collection('members').doc(memberId).get()
+            ]);
+
+            if (!chitDoc.exists || !memberDoc.exists) {
+                alert('Chit fund or member not found!');
+                return;
+            }
+
+            const chit = chitDoc.data();
+            const member = memberDoc.data();
+
+            // Calculate reduced monthly amount
+            const reductionPercentage = Math.min((month - 1) * 5, 40);
+            const reducedMonthlyAmount = chit.monthlyAmount * (1 - reductionPercentage / 100);
+
             const auctionData = {
                 chitId: chitId,
-                winnerId: winnerId,
+                chitName: chit.name,
+                memberId: memberId,
+                memberName: member.name,
                 month: month,
-                auctionAmount: auctionAmount,
-                commission: commission,
-                auctionDate: auctionDate,
+                amountTaken: amount,
+                monthlyAmount: reducedMonthlyAmount,
+                discount: chit.monthlyAmount - reducedMonthlyAmount,
                 managerId: currentUser.uid,
-                status: 'completed',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                auctionDate: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             await db.collection('auctions').add(auctionData);
 
-            recordAuctionModal.hide();
+            // Update member's active chits count
+            await db.collection('members').doc(memberId).update({
+                activeChits: (member.activeChits || 0) + 1
+            });
+
             document.getElementById('recordAuctionForm').reset();
+            recordAuctionModal.hide();
+            
             showSuccess('Auction recorded successfully!');
             
             await updateStats();
@@ -1406,17 +1623,51 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Show record payment modal
+    async function showRecordPaymentModal() {
+        try {
+            const [chitsSnapshot, membersSnapshot] = await Promise.all([
+                db.collection('chits').where('managerId', '==', currentUser.uid).where('status', '==', 'active').get(),
+                db.collection('members').where('managerId', '==', currentUser.uid).get()
+            ]);
+
+            const paymentChitSelect = document.getElementById('paymentChit');
+            const paymentMemberSelect = document.getElementById('paymentMember');
+
+            paymentChitSelect.innerHTML = '<option value="">Choose a chit fund...</option>';
+            paymentMemberSelect.innerHTML = '<option value="">Choose a member...</option>';
+
+            chitsSnapshot.forEach(doc => {
+                const chit = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = chit.name;
+                paymentChitSelect.appendChild(option);
+            });
+
+            membersSnapshot.forEach(doc => {
+                const member = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = `${member.name} (${member.phone})`;
+                paymentMemberSelect.appendChild(option);
+            });
+
+            recordPaymentModal.show();
+        } catch (error) {
+            console.error('Error loading payment data:', error);
+            alert('Error loading data: ' + error.message);
+        }
+    }
+
     // Record payment
     async function recordPayment() {
         const memberId = document.getElementById('paymentMember').value;
         const chitId = document.getElementById('paymentChit').value;
+        const month = parseInt(document.getElementById('paymentMonth').value);
         const amount = parseFloat(document.getElementById('paymentAmount').value);
-        const paymentDate = document.getElementById('paymentDate').value;
-        const month = document.getElementById('paymentMonth').value;
-        const paymentMethod = document.getElementById('paymentMethod').value;
-        const notes = document.getElementById('paymentNotes').value;
 
-        if (!memberId || !chitId || !amount || !paymentDate || !month) {
+        if (!memberId || !chitId || !month || !amount) {
             alert('Please fill all required fields');
             return;
         }
@@ -1424,14 +1675,13 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             setLoading(document.getElementById('savePaymentBtn'), true);
 
-            // Get member and chit details
             const [memberDoc, chitDoc] = await Promise.all([
                 db.collection('members').doc(memberId).get(),
                 db.collection('chits').doc(chitId).get()
             ]);
 
             if (!memberDoc.exists || !chitDoc.exists) {
-                alert('Member or chit fund not found');
+                alert('Member or chit fund not found!');
                 return;
             }
 
@@ -1443,30 +1693,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 memberName: member.name,
                 chitId: chitId,
                 chitName: chit.name,
-                amount: amount,
-                paymentDate: paymentDate,
                 month: month,
-                paymentMethod: paymentMethod,
-                notes: notes,
-                status: 'paid',
+                amount: amount,
+                paymentDate: new Date().toISOString().split('T')[0],
                 managerId: currentUser.uid,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             await db.collection('payments').add(paymentData);
 
-            // Update member's total paid amount
+            // Update member's total paid
             await db.collection('members').doc(memberId).update({
-                totalPaid: firebase.firestore.FieldValue.increment(amount),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                totalPaid: (member.totalPaid || 0) + amount
             });
 
-            recordPaymentModal.hide();
             document.getElementById('recordPaymentForm').reset();
+            recordPaymentModal.hide();
+            
             showSuccess('Payment recorded successfully!');
             
             await loadPayments();
-            await loadMembers();
             await updateStats();
 
         } catch (error) {
@@ -1477,144 +1723,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Update auction preview
-    function updateAuctionPreview() {
-        const month = document.getElementById('auctionMonth').value;
-        const chitId = document.getElementById('auctionChit').value;
-        
-        if (month && chitId) {
-            // Calculate and display preview information
-            document.getElementById('auctionPreview').style.display = 'block';
-            document.getElementById('previewMonth').textContent = month;
-        }
-    }
-
-    // Calculate chit progress
-    function calculateChitProgress(chit) {
-        if (!chit.startDate) {
-            return { percentage: 0, monthsCompleted: 0 };
-        }
-
-        const startDate = new Date(chit.startDate);
-        const currentDate = new Date();
-        const monthsCompleted = Math.floor((currentDate - startDate) / (30 * 24 * 60 * 60 * 1000));
-        const percentage = Math.min(100, Math.max(0, (monthsCompleted / chit.duration) * 100));
-
-        return {
-            percentage: percentage,
-            monthsCompleted: Math.min(monthsCompleted, chit.duration)
-        };
-    }
-
-    // Update dashboard statistics
-    async function updateStats() {
-        try {
-            // Get total members count
-            const membersSnapshot = await db.collection('members')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-            const totalMembers = membersSnapshot.size;
-
-            // Get active chits count
-            const chitsSnapshot = await db.collection('chits')
-                .where('managerId', '==', currentUser.uid)
-                .where('status', '==', 'active')
-                .get();
-            const activeChits = chitsSnapshot.size;
-
-            // Get total collection
-            const paymentsSnapshot = await db.collection('payments')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-            let totalCollection = 0;
-            paymentsSnapshot.forEach(doc => {
-                totalCollection += doc.data().amount || 0;
-            });
-
-            // Get auctions done count
-            const auctionsSnapshot = await db.collection('auctions')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-            const auctionsDone = auctionsSnapshot.size;
-
-            // Update UI
-            if (totalMembersElement) totalMembersElement.textContent = totalMembers;
-            if (activeChitsElement) activeChitsElement.textContent = activeChits;
-            if (totalCollectionElement) totalCollectionElement.textContent = `₹${totalCollection.toLocaleString()}`;
-            if (auctionsDoneElement) auctionsDoneElement.textContent = auctionsDone;
-
-        } catch (error) {
-            console.error('Error updating stats:', error);
-        }
-    }
-
-    // Update UI based on user data
+    // Update UI
     function updateUI() {
-        if (userNameElement && userData) {
+        if (userData) {
             userNameElement.textContent = userData.name || 'Manager';
         }
     }
 
-    // Set loading state for buttons
+    // Set loading state
     function setLoading(button, isLoading) {
+        if (!button) return;
+        
         if (isLoading) {
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
         } else {
             button.disabled = false;
-            button.innerHTML = button.getAttribute('data-original-text') || button.textContent;
+            if (button.id === 'saveChitBtn') {
+                button.innerHTML = 'Create Chit Fund';
+            } else if (button.id === 'saveMemberBtn') {
+                button.innerHTML = 'Add Member';
+            } else if (button.id === 'saveAuctionBtn') {
+                button.innerHTML = 'Record Auction';
+            } else if (button.id === 'savePaymentBtn') {
+                button.innerHTML = 'Record Payment';
+            } else if (button.id === 'updateChitBtn') {
+                button.innerHTML = 'Update Chit Fund';
+            } else if (button.id === 'updateMemberBtn') {
+                button.innerHTML = 'Update Member';
+            }
         }
     }
 
     // Show success message
     function showSuccess(message) {
-        // Create toast notification
-        const toastHTML = `
-            <div class="toast align-items-center text-white bg-success border-0" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <i class="fas fa-check-circle me-2"></i>${message}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+        alertDiv.style.zIndex = '9999';
+        alertDiv.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
+        document.body.appendChild(alertDiv);
         
-        const toastContainer = document.getElementById('toastContainer') || createToastContainer();
-        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
-        
-        const toastElement = toastContainer.lastElementChild;
-        const toast = new bootstrap.Toast(toastElement);
-        toast.show();
-        
-        // Remove toast after it's hidden
-        toastElement.addEventListener('hidden.bs.toast', () => {
-            toastElement.remove();
-        });
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
     }
 
-    // Create toast container if it doesn't exist
-    function createToastContainer() {
-        const container = document.createElement('div');
-        container.id = 'toastContainer';
-        container.className = 'toast-container position-fixed top-0 end-0 p-3';
-        container.style.zIndex = '9999';
-        document.body.appendChild(container);
-        return container;
-    }
-
-    // Logout function
-    logoutBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to logout?')) {
-            auth.signOut().then(() => {
-                window.location.href = 'auth.html';
-            }).catch((error) => {
-                console.error('Error signing out:', error);
-            });
-        }
-    });
-
-    // Global functions for modal interactions
+    // Global functions for modal buttons
     window.editChitFromView = function(chitId) {
         const viewModal = document.getElementById('viewChitModal');
         if (viewModal) {
@@ -1632,53 +1792,226 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         editMember(memberId);
     };
-
-    window.editPaymentFromView = function(paymentId) {
-        const viewModal = document.getElementById('viewPaymentModal');
-        if (viewModal) {
-            const bsModal = bootstrap.Modal.getInstance(viewModal);
-            if (bsModal) bsModal.hide();
-        }
-        editPayment(paymentId);
-    };
-
-    window.addMemberToChit = async function(chitId) {
-        // Implementation for adding member to chit
-        alert('Add member to chit functionality would go here');
-    };
-
-    window.removeMemberFromChit = async function(membershipId, chitId) {
-        if (confirm('Are you sure you want to remove this member from the chit fund?')) {
-            try {
-                await db.collection('chitMemberships').doc(membershipId).delete();
-                
-                // Update chit member count
-                const chitDoc = await db.collection('chits').doc(chitId).get();
-                if (chitDoc.exists) {
-                    const chit = chitDoc.data();
-                    await db.collection('chits').doc(chitId).update({
-                        currentMembers: Math.max(0, (chit.currentMembers || 0) - 1)
-                    });
-                }
-                
-                showSuccess('Member removed from chit fund successfully!');
-                
-                // Close and reopen modal to refresh data
-                const viewModal = document.getElementById('viewChitModal');
-                if (viewModal) {
-                    const bsModal = bootstrap.Modal.getInstance(viewModal);
-                    if (bsModal) bsModal.hide();
-                }
-                
-                // Reload chit details
-                await loadChitFunds();
-                await loadMembers();
-                await updateStats();
-                
-            } catch (error) {
-                console.error('Error removing member from chit:', error);
-                alert('Error removing member from chit: ' + error.message);
-            }
-        }
-    };
 });
+
+// Add member to chit function
+async function addMemberToChit(chitId) {
+    try {
+        // Load all available members
+        const [membersSnapshot, chitDoc] = await Promise.all([
+            db.collection('members').where('managerId', '==', currentUser.uid).get(),
+            db.collection('chits').doc(chitId).get()
+        ]);
+
+        if (!chitDoc.exists) {
+            alert('Chit fund not found!');
+            return;
+        }
+
+        const chit = chitDoc.data();
+        
+        // Get current members to exclude already joined ones
+        const currentMembersSnapshot = await db.collection('chitMemberships')
+            .where('chitId', '==', chitId)
+            .get();
+
+        const currentMemberIds = new Set();
+        currentMembersSnapshot.forEach(doc => {
+            currentMemberIds.add(doc.data().memberId);
+        });
+
+        let memberOptionsHTML = '<option value="">Select a member to add...</option>';
+        membersSnapshot.forEach(doc => {
+            const member = doc.data();
+            if (!currentMemberIds.has(doc.id)) {
+                memberOptionsHTML += `<option value="${doc.id}">${member.name} (${member.phone})</option>`;
+            }
+        });
+
+        const addMemberHTML = `
+            <div class="modal fade" id="addMemberToChitModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Add Member to ${chit.name}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="selectMemberToAdd" class="form-label">Select Member</label>
+                                <select class="form-select" id="selectMemberToAdd">
+                                    ${memberOptionsHTML}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="confirmAddMemberBtn">Add Member</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('addMemberToChitModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        document.body.insertAdjacentHTML('beforeend', addMemberHTML);
+        
+        // Add event listener
+        document.getElementById('confirmAddMemberBtn').addEventListener('click', async () => {
+            await confirmAddMemberToChit(chitId);
+        });
+
+        const addMemberModal = new bootstrap.Modal(document.getElementById('addMemberToChitModal'));
+        addMemberModal.show();
+
+    } catch (error) {
+        console.error('Error loading members for chit:', error);
+        alert('Error loading members: ' + error.message);
+    }
+}
+
+// Confirm add member to chit
+async function confirmAddMemberToChit(chitId) {
+    const memberId = document.getElementById('selectMemberToAdd').value;
+    
+    if (!memberId) {
+        alert('Please select a member');
+        return;
+    }
+
+    try {
+        const [memberDoc, chitDoc] = await Promise.all([
+            db.collection('members').doc(memberId).get(),
+            db.collection('chits').doc(chitId).get()
+        ]);
+
+        if (!memberDoc.exists || !chitDoc.exists) {
+            alert('Member or chit fund not found!');
+            return;
+        }
+
+        const member = memberDoc.data();
+        const chit = chitDoc.data();
+
+        const membershipData = {
+            chitId: chitId,
+            memberId: memberId,
+            chitName: chit.name,
+            chitCode: chit.chitCode,
+            memberName: member.name,
+            managerId: currentUser.uid,
+            joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            status: 'approved',
+            totalPaid: 0
+        };
+
+        await db.collection('chitMemberships').add(membershipData);
+
+        // Update chit member count
+        await db.collection('chits').doc(chitId).update({
+            currentMembers: (chit.currentMembers || 0) + 1
+        });
+
+        // Update member's active chits count
+        await db.collection('members').doc(memberId).update({
+            activeChits: (member.activeChits || 0) + 1
+        });
+
+        // Close modals
+        const addMemberModal = document.getElementById('addMemberToChitModal');
+        const bsAddModal = bootstrap.Modal.getInstance(addMemberModal);
+        if (bsAddModal) bsAddModal.hide();
+
+        const viewModal = document.getElementById('viewChitModal');
+        const bsViewModal = bootstrap.Modal.getInstance(viewModal);
+        if (bsViewModal) bsViewModal.hide();
+
+        showSuccess('Member added to chit fund successfully!');
+        
+        // Reload the view
+        await viewChitDetails(chitId);
+
+    } catch (error) {
+        console.error('Error adding member to chit:', error);
+        alert('Error adding member to chit: ' + error.message);
+    }
+}
+
+// Remove member from chit
+async function removeMemberFromChit(membershipId, chitId) {
+    if (!confirm('Are you sure you want to remove this member from the chit fund?')) {
+        return;
+    }
+
+    try {
+        // Get membership details
+        const membershipDoc = await db.collection('chitMemberships').doc(membershipId).get();
+        if (!membershipDoc.exists) {
+            alert('Membership not found!');
+            return;
+        }
+
+        const membership = membershipDoc.data();
+        const chitDoc = await db.collection('chits').doc(chitId).get();
+        
+        if (!chitDoc.exists) {
+            alert('Chit fund not found!');
+            return;
+        }
+
+        const chit = chitDoc.data();
+
+        // Delete the membership
+        await db.collection('chitMemberships').doc(membershipId).delete();
+
+        // Update chit member count
+        await db.collection('chits').doc(chitId).update({
+            currentMembers: Math.max(0, (chit.currentMembers || 0) - 1)
+        });
+
+        // Update member's active chits count if member exists in members collection
+        try {
+            const memberDoc = await db.collection('members').doc(membership.memberId).get();
+            if (memberDoc.exists) {
+                const member = memberDoc.data();
+                await db.collection('members').doc(membership.memberId).update({
+                    activeChits: Math.max(0, (member.activeChits || 0) - 1)
+                });
+            }
+        } catch (error) {
+            console.warn('Error updating member active chits:', error);
+        }
+
+        showSuccess('Member removed from chit fund successfully!');
+        
+        // Reload the view
+        const viewModal = document.getElementById('viewChitModal');
+        const bsViewModal = bootstrap.Modal.getInstance(viewModal);
+        if (bsViewModal) bsViewModal.hide();
+
+        await viewChitDetails(chitId);
+
+    } catch (error) {
+        console.error('Error removing member from chit:', error);
+        alert('Error removing member from chit: ' + error.message);
+    }
+}
+
+// Add global functions for payment operations
+window.editPaymentFromView = function(paymentId) {
+    const viewModal = document.getElementById('viewPaymentModal');
+    if (viewModal) {
+        const bsModal = bootstrap.Modal.getInstance(viewModal);
+        if (bsModal) bsModal.hide();
+    }
+    editPayment(paymentId);
+};
+
+// Add global functions for member operations
+window.removeMemberFromChit = removeMemberFromChit;
+window.addMemberToChit = addMemberToChit;
