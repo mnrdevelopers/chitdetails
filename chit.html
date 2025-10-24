@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChitFund - Chit Details</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <div class="header-content">
+                <a href="dashboard.html" class="back-btn">&larr; Back</a>
+                <h1 id="chit-title">Chit Details</h1>
+                <button id="logout-btn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <!-- Chit Summary -->
+            <section class="chit-summary">
+                <h2>Summary</h2>
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h3>Total Amount</h3>
+                        <p id="total-amount">₹0</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Months Completed</h3>
+                        <p id="months-completed">0/0</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Amount Circulated</h3>
+                        <p id="amount-circulated">₹0</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Monthly Collection -->
+            <section class="monthly-collection">
+                <div class="section-header">
+                    <h2>Monthly Collection</h2>
+                    <div class="month-selector">
+                        <button id="prev-month" class="btn-icon">&larr;</button>
+                        <span id="current-month">Month 1</span>
+                        <button id="next-month" class="btn-icon">&rarr;</button>
+                    </div>
+                </div>
+
+                <div class="collection-stats">
+                    <div class="stat">
+                        <span class="stat-label">Total Collected:</span>
+                        <span id="total-collected">₹0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Pending:</span>
+                        <span id="total-pending">₹0</span>
+                    </div>
+                </div>
+
+                <div id="members-list" class="members-list">
+                    <!-- Members and payment status will be loaded here -->
+                </div>
+
+                <!-- Receiver Selection -->
+                <div id="receiver-section" class="receiver-section">
+                    <h3>Select Receiver for This Month</h3>
+                    <select id="receiver-select">
+                        <option value="">Select a member</option>
+                    </select>
+                    <button id="save-receiver" class="btn-primary">Save Receiver</button>
+                </div>
+            </section>
+
+            <!-- Add Member Modal -->
+            <div id="add-member-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Add Member</h3>
+                        <button class="close-modal">&times;</button>
+                    </div>
+                    <form id="add-member-form">
+                        <div class="form-group">
+                            <label for="member-name">Member Name</label>
+                            <input type="text" id="member-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="member-phone">Phone Number</label>
+                            <input type="tel" id="member-phone" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary close-modal">Cancel</button>
+                            <button type="submit" class="btn-primary">Add Member</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="app.js"></script>
+    <script type="module" src="chit.js"></script>
+</body>
+</html>
