@@ -86,19 +86,16 @@ document.addEventListener('DOMContentLoaded', function() {
         hideProgress();
     });
 
-   // Switch form with animation - FIXED VERSION
+// Switch form with animation - CORRECTED VERSION
 function switchToForm(formType) {
-    const forms = [];
-    
-    // Only add forms that exist
-    if (loginForm) forms.push(loginForm);
-    if (registerForm) forms.push(registerForm);
-    if (roleSelectionForm) forms.push(roleSelectionForm);
+    const forms = [loginForm, registerForm, roleSelectionForm].filter(form => form);
     
     forms.forEach(form => {
-        form.classList.remove('active');
-        form.style.opacity = '0';
-        form.style.transform = 'translateX(30px)';
+        if (form) {
+            form.classList.remove('active');
+            form.style.opacity = '0';
+            form.style.transform = 'translateX(30px)';
+        }
     });
 
     setTimeout(() => {
@@ -125,9 +122,6 @@ function switchToForm(formType) {
     }, 300);
     
     clearMessages();
-    if (formType === 'register') {
-        resetForms();
-    }
 }
 
     // Initialize password visibility toggles
