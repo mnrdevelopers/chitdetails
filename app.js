@@ -24,12 +24,13 @@ import {
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCHmN3ChQm8HLMQ1bxzwtd7dEaJJZDPts4",
+  authDomain: "graminchits.firebaseapp.com",
+  projectId: "graminchits",
+  storageBucket: "graminchits.firebasestorage.app",
+  messagingSenderId: "775668330555",
+  appId: "1:775668330555:web:8585a06c781ae856ceac1e",
+  measurementId: "G-9KWY7YMSBQ"
 };
 
 // Initialize Firebase
