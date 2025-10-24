@@ -394,20 +394,37 @@ async function updateStats() {
     }
 }
 
-    // Calculate chit progress
-    function calculateChitProgress(chit) {
-        const startDate = new Date(chit.startDate);
-        const currentDate = new Date();
-        const monthsPassed = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 30));
-        const percentage = Math.min((monthsPassed / chit.duration) * 100, 100);
-        
+ // Calculate chit progress
+function calculateChitProgress(chit) {
+    if (!chit.startDate || !chit.duration) {
         return {
-            monthsPassed: Math.min(monthsPassed, chit.duration),
-            totalMonths: chit.duration,
-            percentage: percentage
+            monthsPassed: 0,
+            totalMonths: chit.duration || 0,
+            percentage: 0
         };
     }
 
+    const startDate = new Date(chit.startDate);
+    const currentDate = new Date();
+    
+    // Handle invalid dates
+    if (isNaN(startDate.getTime())) {
+        return {
+            monthsPassed: 0,
+            totalMonths: chit.duration,
+            percentage: 0
+        };
+    }
+
+    const monthsPassed = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 30));
+    const percentage = Math.min((monthsPassed / chit.duration) * 100, 100);
+    
+    return {
+        monthsPassed: Math.min(monthsPassed, chit.duration),
+        totalMonths: chit.duration,
+        percentage: Math.round(percentage)
+    };
+}
   // Enhanced event listeners with error handling
 createChitBtn.addEventListener('click', () => {
     try {
@@ -606,16 +623,24 @@ document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFu
         }
     }
 
-    // Set loading state
-    function setLoading(button, isLoading) {
-        if (isLoading) {
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
-        } else {
-            button.disabled = false;
-            button.innerHTML = button === saveChitBtn ? 'Create Chit Fund' : 'Add Member';
+  // Set loading state
+function setLoading(button, isLoading) {
+    if (!button) return;
+    
+    if (isLoading) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+    } else {
+        button.disabled = false;
+        if (button === saveChitBtn) {
+            button.innerHTML = 'Create Chit Fund';
+        } else if (button === saveMemberBtn) {
+            button.innerHTML = 'Add Member';
+        } else if (button.id === 'updateChitBtn') {
+            button.innerHTML = 'Update Chit Fund';
         }
     }
+}
 
     // Show success message
     function showSuccess(message) {
