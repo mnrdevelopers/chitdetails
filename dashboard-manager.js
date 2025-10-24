@@ -892,3 +892,100 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Load members for a specific chit - ADD THIS FUNCTION
+async function loadChitMembers(chitId) {
+    try {
+        const membershipsSnapshot = await db.collection('chitMemberships')
+            .where('chitId', '==', chitId)
+            .get();
+        
+        const membersList = document.getElementById('membersList');
+        membersList.innerHTML = '';
+        
+        if (membershipsSnapshot.empty) {
+            membersList.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Members Yet</h5>
+                    <p class="text-muted">Members will appear here after they join and get approved</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Load member details for each membership
+        for (const doc of membershipsSnapshot.docs) {
+            const membership = { id: doc.id, ...doc.data() };
+            const userDoc = await db.collection('users').doc(membership.memberId).get();
+            
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                renderChitMember(userData, membership);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading chit members:', error);
+    }
+}
+
+// Render member in chit members list - ADD THIS FUNCTION
+function renderChitMember(user, membership) {
+    const membersList = document.getElementById('membersList');
+    
+    const memberElement = document.createElement('div');
+    memberElement.className = 'member-item';
+    memberElement.innerHTML = `
+        <div class="member-header">
+            <div class="member-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="member-info">
+                <h5 class="member-name">${user.name}</h5>
+                <p class="member-contact">
+                    <i class="fas fa-envelope me-1"></i>${user.email}
+                    ${user.phone ? `<br><i class="fas fa-phone me-1"></i>${user.phone}` : ''}
+                </p>
+            </div>
+            <div class="member-status">
+                <span class="badge ${membership.status === 'approved' ? 'bg-success' : membership.status === 'pending' ? 'bg-warning' : 'bg-secondary'}">
+                    ${membership.status}
+                </span>
+            </div>
+        </div>
+        <div class="member-stats">
+            <div class="stat">
+                <label>Joined:</label>
+                <span>${membership.joinedAt ? new Date(membership.joinedAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+            </div>
+            <div class="stat">
+                <label>Total Paid:</label>
+                <span>₹${membership.totalPaid || 0}</span>
+            </div>
+        </div>
+        <div class="member-actions">
+            ${membership.status === 'pending' ? `
+                <button class="btn btn-sm btn-success approve-member-btn" data-membership-id="${membership.id}">
+                    <i class="fas fa-check me-1"></i>Approve
+                </button>
+                <button class="btn btn-sm btn-danger reject-member-btn" data-membership-id="${membership.id}">
+                    <i class="fas fa-times me-1"></i>Reject
+                </button>
+            ` : ''}
+            ${membership.status === 'approved' ? `
+                <button class="btn btn-sm btn-warning suspend-member-btn" data-membership-id="${membership.id}">
+                    <i class="fas fa-pause me-1"></i>Suspend
+                </button>
+            ` : ''}
+            <button class="btn btn-sm btn-info view-payments-btn" data-member-id="${user.id}" data-chit-id="${membership.chitId}">
+                <i class="fas fa-money-bill me-1"></i>Payments
+            </button>
+        </div>
+    `;
+    
+    membersList.appendChild(memberElement);
+    
+    // Add event listeners
+    attachMemberActionListeners(memberElement, membership);
+}
