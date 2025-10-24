@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const createChitModal = new bootstrap.Modal(document.getElementById('createChitModal'));
     const addMemberModal = new bootstrap.Modal(document.getElementById('addMemberModal'));
 
+    const viewChitModal = new bootstrap.Modal(document.getElementById('viewChitModal'));
+    const editChitModal = new bootstrap.Modal(document.getElementById('editChitModal'));
+
     let currentUser = null;
     let userData = null;
 
@@ -449,6 +452,10 @@ logoutBtn.addEventListener('click', async () => {
     }
 });
 
+    // Add this event listener for the update button
+document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFund);
+
+
     // Create chit fund
     async function createChitFund() {
         const name = document.getElementById('chitName').value;
@@ -650,3 +657,120 @@ logoutBtn.addEventListener('click', async () => {
         }
     };
 });
+
+// View chit details - IMPLEMENTED
+async function viewChitDetails(chitId) {
+    try {
+        const chitDoc = await db.collection('chits').doc(chitId).get();
+        if (!chitDoc.exists) {
+            alert('Chit fund not found!');
+            return;
+        }
+
+        const chit = chitDoc.data();
+        const progress = calculateChitProgress(chit);
+
+        // Populate view modal
+        document.getElementById('viewChitName').textContent = chit.name || '-';
+        document.getElementById('viewChitCode').textContent = chit.chitCode || '-';
+        document.getElementById('viewTotalAmount').textContent = `₹${chit.totalAmount?.toLocaleString() || '0'}`;
+        document.getElementById('viewMonthlyAmount').textContent = `₹${chit.monthlyAmount?.toLocaleString() || '0'}`;
+        document.getElementById('viewDuration').textContent = `${chit.duration || '0'} months`;
+        document.getElementById('viewStartDate').textContent = chit.startDate || '-';
+        document.getElementById('viewMaxMembers').textContent = `${chit.currentMembers || 0}/${chit.maxMembers || 0}`;
+        document.getElementById('viewDescription').textContent = chit.description || 'No description provided';
+        
+        // Update progress
+        const progressBar = document.getElementById('viewProgressBar');
+        const progressText = document.getElementById('viewProgressText');
+        progressBar.style.width = `${progress.percentage}%`;
+        progressText.textContent = `${progress.monthsPassed} of ${progress.totalMonths} months completed (${Math.round(progress.percentage)}%)`;
+
+        // Show the modal
+        viewChitModal.show();
+    } catch (error) {
+        console.error('Error loading chit details:', error);
+        alert('Error loading chit details: ' + error.message);
+    }
+}
+
+// Edit chit - IMPLEMENTED
+async function editChit(chitId) {
+    try {
+        const chitDoc = await db.collection('chits').doc(chitId).get();
+        if (!chitDoc.exists) {
+            alert('Chit fund not found!');
+            return;
+        }
+
+        const chit = chitDoc.data();
+
+        // Populate edit form
+        document.getElementById('editChitId').value = chitId;
+        document.getElementById('editChitName').value = chit.name || '';
+        document.getElementById('editChitCode').value = chit.chitCode || '';
+        document.getElementById('editTotalAmount').value = chit.totalAmount || '';
+        document.getElementById('editDuration').value = chit.duration || '';
+        document.getElementById('editMonthlyAmount').value = chit.monthlyAmount || '';
+        document.getElementById('editStartDate').value = chit.startDate || '';
+        document.getElementById('editMaxMembers').value = chit.maxMembers || '';
+        document.getElementById('editDescription').value = chit.description || '';
+        document.getElementById('editStatus').value = chit.status || 'active';
+
+        // Show the modal
+        editChitModal.show();
+    } catch (error) {
+        console.error('Error loading chit for editing:', error);
+        alert('Error loading chit for editing: ' + error.message);
+    }
+}
+
+// Update chit fund
+async function updateChitFund() {
+    const chitId = document.getElementById('editChitId').value;
+    const name = document.getElementById('editChitName').value;
+    const totalAmount = parseFloat(document.getElementById('editTotalAmount').value);
+    const duration = parseInt(document.getElementById('editDuration').value);
+    const monthlyAmount = parseFloat(document.getElementById('editMonthlyAmount').value);
+    const startDate = document.getElementById('editStartDate').value;
+    const maxMembers = parseInt(document.getElementById('editMaxMembers').value);
+    const description = document.getElementById('editDescription').value;
+    const status = document.getElementById('editStatus').value;
+
+    if (!name || !totalAmount || !duration || !monthlyAmount || !startDate || !maxMembers) {
+        alert('Please fill all required fields');
+        return;
+    }
+
+    try {
+        setLoading(document.getElementById('updateChitBtn'), true);
+
+        const updateData = {
+            name: name,
+            totalAmount: totalAmount,
+            duration: duration,
+            monthlyAmount: monthlyAmount,
+            startDate: startDate,
+            maxMembers: maxMembers,
+            description: description,
+            status: status,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('chits').doc(chitId).update(updateData);
+
+        // Close modal and show success
+        editChitModal.hide();
+        showSuccess('Chit fund updated successfully!');
+        
+        // Reload chit funds
+        await loadChitFunds();
+        await updateStats();
+
+    } catch (error) {
+        console.error('Error updating chit fund:', error);
+        alert('Error updating chit fund: ' + error.message);
+    } finally {
+        setLoading(document.getElementById('updateChitBtn'), false);
+    }
+}
