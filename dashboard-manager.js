@@ -589,18 +589,73 @@ document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFu
         deleteBtn.addEventListener('click', () => deleteChit(chit.id));
     }
 
-    // View chit details
-    function viewChitDetails(chitId) {
-        // Implementation for viewing chit details
-        alert('View chit details: ' + chitId);
-    }
+  // View chit details - COMPLETE IMPLEMENTATION
+async function viewChitDetails(chitId) {
+    try {
+        const chitDoc = await db.collection('chits').doc(chitId).get();
+        if (!chitDoc.exists) {
+            alert('Chit fund not found!');
+            return;
+        }
 
-    // Edit chit
-    function editChit(chitId) {
-        // Implementation for editing chit
-        alert('Edit chit: ' + chitId);
-    }
+        const chit = chitDoc.data();
+        const progress = calculateChitProgress(chit);
 
+        // Populate view modal
+        document.getElementById('viewChitName').textContent = chit.name || '-';
+        document.getElementById('viewChitCode').textContent = chit.chitCode || '-';
+        document.getElementById('viewTotalAmount').textContent = `₹${chit.totalAmount?.toLocaleString() || '0'}`;
+        document.getElementById('viewMonthlyAmount').textContent = `₹${chit.monthlyAmount?.toLocaleString() || '0'}`;
+        document.getElementById('viewDuration').textContent = `${chit.duration || '0'} months`;
+        document.getElementById('viewStartDate').textContent = chit.startDate || '-';
+        document.getElementById('viewMaxMembers').textContent = `${chit.currentMembers || 0}/${chit.maxMembers || 0}`;
+        document.getElementById('viewDescription').textContent = chit.description || 'No description provided';
+        
+        // Update progress
+        const progressBar = document.getElementById('viewProgressBar');
+        const progressText = document.getElementById('viewProgressText');
+        progressBar.style.width = `${progress.percentage}%`;
+        progressText.textContent = `${progress.monthsPassed} of ${progress.totalMonths} months completed (${Math.round(progress.percentage)}%)`;
+
+        // Show the modal
+        viewChitModal.show();
+    } catch (error) {
+        console.error('Error loading chit details:', error);
+        alert('Error loading chit details: ' + error.message);
+    }
+}
+
+  // Edit chit - COMPLETE IMPLEMENTATION
+async function editChit(chitId) {
+    try {
+        const chitDoc = await db.collection('chits').doc(chitId).get();
+        if (!chitDoc.exists) {
+            alert('Chit fund not found!');
+            return;
+        }
+
+        const chit = chitDoc.data();
+
+        // Populate edit form
+        document.getElementById('editChitId').value = chitId;
+        document.getElementById('editChitName').value = chit.name || '';
+        document.getElementById('editChitCode').value = chit.chitCode || '';
+        document.getElementById('editTotalAmount').value = chit.totalAmount || '';
+        document.getElementById('editDuration').value = chit.duration || '';
+        document.getElementById('editMonthlyAmount').value = chit.monthlyAmount || '';
+        document.getElementById('editStartDate').value = chit.startDate || '';
+        document.getElementById('editMaxMembers').value = chit.maxMembers || '';
+        document.getElementById('editDescription').value = chit.description || '';
+        document.getElementById('editStatus').value = chit.status || 'active';
+
+        // Show the modal
+        editChitModal.show();
+    } catch (error) {
+        console.error('Error loading chit for editing:', error);
+        alert('Error loading chit for editing: ' + error.message);
+    }
+}
+    
     // Delete chit
     async function deleteChit(chitId) {
         if (confirm('Are you sure you want to delete this chit fund? This action cannot be undone.')) {
@@ -750,7 +805,7 @@ async function editChit(chitId) {
     }
 }
 
-// Update chit fund
+// Update chit fund - COMPLETE IMPLEMENTATION
 async function updateChitFund() {
     const chitId = document.getElementById('editChitId').value;
     const name = document.getElementById('editChitName').value;
