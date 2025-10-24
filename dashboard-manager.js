@@ -30,103 +30,94 @@ document.addEventListener('DOMContentLoaded', function() {
     // Modal instances
     const createChitModal = new bootstrap.Modal(document.getElementById('createChitModal'));
     const addMemberModal = new bootstrap.Modal(document.getElementById('addMemberModal'));
-
     const viewChitModal = new bootstrap.Modal(document.getElementById('viewChitModal'));
     const editChitModal = new bootstrap.Modal(document.getElementById('editChitModal'));
 
     let currentUser = null;
     let userData = null;
 
-    // Check authentication and role
- // Check authentication and role with enhanced error handling
-auth.onAuthStateChanged(async (user) => {
-    try {
-        if (user) {
-            currentUser = user;
-            await loadUserData();
-            await checkManagerRole();
-            await loadDashboardData();
-            updateUI();
-        } else {
+    // Check authentication and role with enhanced error handling
+    auth.onAuthStateChanged(async (user) => {
+        try {
+            if (user) {
+                currentUser = user;
+                await loadUserData();
+                await checkManagerRole();
+                await loadDashboardData();
+                updateUI();
+            } else {
+                window.location.href = 'auth.html';
+            }
+        } catch (error) {
+            console.error('Error in auth state change:', error);
             window.location.href = 'auth.html';
         }
-    } catch (error) {
-        console.error('Error in auth state change:', error);
-        // Redirect to auth page on critical errors
-        window.location.href = 'auth.html';
-    }
-});
+    });
 
-  // Load user data with enhanced role management
-async function loadUserData() {
-    try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if (userDoc.exists) {
-            userData = userDoc.data();
-            // Ensure user has manager role
-            if (userData.role !== 'manager') {
+    // Load user data with enhanced role management
+    async function loadUserData() {
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            if (userDoc.exists) {
+                userData = userDoc.data();
+                if (userData.role !== 'manager') {
+                    try {
+                        await db.collection('users').doc(currentUser.uid).update({
+                            role: 'manager',
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        userData.role = 'manager';
+                    } catch (updateError) {
+                        console.warn('Could not update user role:', updateError);
+                    }
+                }
+            } else {
+                userData = {
+                    name: currentUser.displayName || currentUser.email.split('@')[0],
+                    email: currentUser.email,
+                    role: 'manager',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
                 try {
-                    await db.collection('users').doc(currentUser.uid).update({
-                        role: 'manager',
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    userData.role = 'manager';
-                } catch (updateError) {
-                    console.warn('Could not update user role:', updateError);
+                    await db.collection('users').doc(currentUser.uid).set(userData);
+                } catch (setError) {
+                    console.warn('Could not create user profile:', setError);
                 }
             }
-        } else {
-            // Create manager profile
+        } catch (error) {
+            console.error('Error loading user data:', error);
             userData = {
                 name: currentUser.displayName || currentUser.email.split('@')[0],
                 email: currentUser.email,
-                role: 'manager',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                role: 'manager'
             };
-            try {
-                await db.collection('users').doc(currentUser.uid).set(userData);
-            } catch (setError) {
-                console.warn('Could not create user profile:', setError);
-            }
         }
-    } catch (error) {
-        console.error('Error loading user data:', error);
-        // Create basic user data object even if DB fails
-        userData = {
-            name: currentUser.displayName || currentUser.email.split('@')[0],
-            email: currentUser.email,
-            role: 'manager'
-        };
     }
-}
 
- // Check and set manager role - ENHANCED VERSION
-async function checkManagerRole() {
-    try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if (userDoc.exists) {
-            const userData = userDoc.data();
-            
-            if (!userData.role) {
-                // User hasn't selected a role - redirect to auth page for role selection
+    // Check and set manager role
+    async function checkManagerRole() {
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                
+                if (!userData.role) {
+                    window.location.href = 'auth.html';
+                    return;
+                }
+                
+                if (userData.role !== 'manager') {
+                    window.location.href = 'dashboard-member.html';
+                }
+            } else {
                 window.location.href = 'auth.html';
-                return;
             }
-            
-            if (userData.role !== 'manager') {
-                // Redirect members to member dashboard
-                window.location.href = 'dashboard-member.html';
-            }
-        } else {
-            // User document doesn't exist - redirect to complete registration
+        } catch (error) {
+            console.error('Error checking role:', error);
             window.location.href = 'auth.html';
         }
-    } catch (error) {
-        console.error('Error checking role:', error);
-        window.location.href = 'auth.html';
     }
-}
 
     // Load dashboard data
     async function loadDashboardData() {
@@ -228,8 +219,6 @@ async function checkManagerRole() {
         `;
         
         chitFundsList.appendChild(chitElement);
-        
-        // Add event listeners
         attachChitEventListeners(chitElement, chit);
     }
 
@@ -309,7 +298,6 @@ async function checkManagerRole() {
 
     // Load auctions
     async function loadAuctions() {
-        // Implementation for auctions
         auctionsList.innerHTML = `
             <div class="text-center py-5">
                 <i class="fas fa-gavel fa-3x text-muted mb-3"></i>
@@ -321,7 +309,6 @@ async function checkManagerRole() {
 
     // Load payments
     async function loadPayments() {
-        // Implementation for payments
         paymentsList.innerHTML = `
             <div class="text-center py-5">
                 <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
@@ -331,161 +318,151 @@ async function checkManagerRole() {
         `;
     }
 
-  // Update dashboard statistics
-async function updateStats() {
-    try {
-        // Count members with error handling
-        let membersCount = 0;
+    // Update dashboard statistics
+    async function updateStats() {
         try {
-            const membersSnapshot = await db.collection('members')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-            membersCount = membersSnapshot.size;
-        } catch (error) {
-            console.warn('Error counting members:', error);
-            membersCount = 0;
-        }
-        totalMembersElement.textContent = membersCount;
+            let membersCount = 0;
+            try {
+                const membersSnapshot = await db.collection('members')
+                    .where('managerId', '==', currentUser.uid)
+                    .get();
+                membersCount = membersSnapshot.size;
+            } catch (error) {
+                console.warn('Error counting members:', error);
+                membersCount = 0;
+            }
+            totalMembersElement.textContent = membersCount;
 
-        // Count active chits with error handling
-        let activeChitsCount = 0;
-        let totalCollection = 0;
-        try {
-            const chitsSnapshot = await db.collection('chits')
-                .where('managerId', '==', currentUser.uid)
-                .where('status', '==', 'active')
-                .get();
+            let activeChitsCount = 0;
+            let totalCollection = 0;
+            try {
+                const chitsSnapshot = await db.collection('chits')
+                    .where('managerId', '==', currentUser.uid)
+                    .where('status', '==', 'active')
+                    .get();
+                
+                activeChitsCount = chitsSnapshot.size;
+                
+                chitsSnapshot.forEach(doc => {
+                    const chit = doc.data();
+                    totalCollection += (chit.monthlyAmount || 0) * (chit.currentMembers || 0);
+                });
+            } catch (error) {
+                console.warn('Error counting chits:', error);
+                activeChitsCount = 0;
+                totalCollection = 0;
+            }
             
-            activeChitsCount = chitsSnapshot.size;
-            
-            // Calculate total monthly collection
-            chitsSnapshot.forEach(doc => {
-                const chit = doc.data();
-                totalCollection += (chit.monthlyAmount || 0) * (chit.currentMembers || 0);
-            });
-        } catch (error) {
-            console.warn('Error counting chits:', error);
-            activeChitsCount = 0;
-            totalCollection = 0;
-        }
-        
-        activeChitsElement.textContent = activeChitsCount;
-        totalCollectionElement.textContent = `₹${totalCollection.toLocaleString()}`;
+            activeChitsElement.textContent = activeChitsCount;
+            totalCollectionElement.textContent = `₹${totalCollection.toLocaleString()}`;
 
-        // Count auctions this month with error handling
-        let auctionsThisMonth = 0;
-        try {
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
-            
-            const auctionsSnapshot = await db.collection('auctions')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-            
-            auctionsSnapshot.forEach(doc => {
-                const auction = doc.data();
-                if (auction.auctionDate) {
-                    const auctionDate = auction.auctionDate.toDate();
-                    if (auctionDate.getMonth() === currentMonth && 
-                        auctionDate.getFullYear() === currentYear) {
-                        auctionsThisMonth++;
+            let auctionsThisMonth = 0;
+            try {
+                const currentMonth = new Date().getMonth();
+                const currentYear = new Date().getFullYear();
+                
+                const auctionsSnapshot = await db.collection('auctions')
+                    .where('managerId', '==', currentUser.uid)
+                    .get();
+                
+                auctionsSnapshot.forEach(doc => {
+                    const auction = doc.data();
+                    if (auction.auctionDate) {
+                        const auctionDate = auction.auctionDate.toDate();
+                        if (auctionDate.getMonth() === currentMonth && 
+                            auctionDate.getFullYear() === currentYear) {
+                            auctionsThisMonth++;
+                        }
                     }
-                }
-            });
+                });
+            } catch (error) {
+                console.warn('Error counting auctions:', error);
+                auctionsThisMonth = 0;
+            }
+            auctionsThisMonthElement.textContent = auctionsThisMonth;
+
         } catch (error) {
-            console.warn('Error counting auctions:', error);
-            auctionsThisMonth = 0;
+            console.error('Error updating stats:', error);
+            totalMembersElement.textContent = '0';
+            activeChitsElement.textContent = '0';
+            totalCollectionElement.textContent = '₹0';
+            auctionsThisMonthElement.textContent = '0';
         }
-        auctionsThisMonthElement.textContent = auctionsThisMonth;
-
-    } catch (error) {
-        console.error('Error updating stats:', error);
-        // Set default values on error
-        totalMembersElement.textContent = '0';
-        activeChitsElement.textContent = '0';
-        totalCollectionElement.textContent = '₹0';
-        auctionsThisMonthElement.textContent = '0';
-    }
-}
-
- // Calculate chit progress
-function calculateChitProgress(chit) {
-    if (!chit.startDate || !chit.duration) {
-        return {
-            monthsPassed: 0,
-            totalMonths: chit.duration || 0,
-            percentage: 0
-        };
     }
 
-    const startDate = new Date(chit.startDate);
-    const currentDate = new Date();
-    
-    // Handle invalid dates
-    if (isNaN(startDate.getTime())) {
+    // Calculate chit progress
+    function calculateChitProgress(chit) {
+        if (!chit.startDate || !chit.duration) {
+            return {
+                monthsPassed: 0,
+                totalMonths: chit.duration || 0,
+                percentage: 0
+            };
+        }
+
+        const startDate = new Date(chit.startDate);
+        const currentDate = new Date();
+        
+        if (isNaN(startDate.getTime())) {
+            return {
+                monthsPassed: 0,
+                totalMonths: chit.duration,
+                percentage: 0
+            };
+        }
+
+        const monthsPassed = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 30));
+        const percentage = Math.min((monthsPassed / chit.duration) * 100, 100);
+        
         return {
-            monthsPassed: 0,
+            monthsPassed: Math.min(monthsPassed, chit.duration),
             totalMonths: chit.duration,
-            percentage: 0
+            percentage: Math.round(percentage)
         };
     }
 
-    const monthsPassed = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 30));
-    const percentage = Math.min((monthsPassed / chit.duration) * 100, 100);
-    
-    return {
-        monthsPassed: Math.min(monthsPassed, chit.duration),
-        totalMonths: chit.duration,
-        percentage: Math.round(percentage)
-    };
-}
-  // Enhanced event listeners with error handling
-createChitBtn.addEventListener('click', () => {
-    try {
-        createChitModal.show();
-    } catch (error) {
-        console.error('Error showing modal:', error);
-    }
-});
+    // Enhanced event listeners with error handling
+    createChitBtn.addEventListener('click', () => {
+        try {
+            createChitModal.show();
+        } catch (error) {
+            console.error('Error showing modal:', error);
+        }
+    });
 
-addMemberBtn.addEventListener('click', () => {
-    try {
-        addMemberModal.show();
-    } catch (error) {
-        console.error('Error showing modal:', error);
-    }
-});
+    addMemberBtn.addEventListener('click', () => {
+        try {
+            addMemberModal.show();
+        } catch (error) {
+            console.error('Error showing modal:', error);
+        }
+    });
 
-saveChitBtn.addEventListener('click', async () => {
-    try {
-        await createChitFund();
-    } catch (error) {
-        console.error('Error in chit creation:', error);
-    }
-});
+    saveChitBtn.addEventListener('click', async () => {
+        try {
+            await createChitFund();
+        } catch (error) {
+            console.error('Error in chit creation:', error);
+        }
+    });
 
-saveMemberBtn.addEventListener('click', async () => {
-    try {
-        await addMember();
-    } catch (error) {
-        console.error('Error in member addition:', error);
-    }
-});
+    saveMemberBtn.addEventListener('click', async () => {
+        try {
+            await addMember();
+        } catch (error) {
+            console.error('Error in member addition:', error);
+        }
+    });
 
-logoutBtn.addEventListener('click', async () => {
-    try {
-        await auth.signOut();
-        window.location.href = 'auth.html';
-    } catch (error) {
-        console.error('Logout error:', error);
-        // Fallback: redirect anyway
-        window.location.href = 'auth.html';
-    }
-});
-
-    // Add this event listener for the update button
-document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFund);
-
+    logoutBtn.addEventListener('click', async () => {
+        try {
+            await auth.signOut();
+            window.location.href = 'auth.html';
+        } catch (error) {
+            console.error('Logout error:', error);
+            window.location.href = 'auth.html';
+        }
+    });
 
     // Create chit fund
     async function createChitFund() {
@@ -524,14 +501,11 @@ document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFu
 
             await db.collection('chits').add(chitData);
 
-            // Reset form and close modal
             document.getElementById('createChitForm').reset();
             createChitModal.hide();
             
-            // Show success message
             showSuccess('Chit fund created successfully!');
             
-            // Reload chit funds
             await loadChitFunds();
             await updateStats();
 
@@ -573,14 +547,11 @@ document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFu
 
             await db.collection('members').add(memberData);
 
-            // Reset form and close modal
             document.getElementById('addMemberForm').reset();
             addMemberModal.hide();
             
-            // Show success message
             showSuccess('Member added successfully!');
             
-            // Reload members
             await loadMembers();
             await updateStats();
 
@@ -603,91 +574,102 @@ document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFu
         deleteBtn.addEventListener('click', () => deleteChit(chit.id));
     }
 
-// Enhanced view chit details function
-async function viewChitDetails(chitId) {
-    try {
-        const chitDoc = await db.collection('chits').doc(chitId).get();
-        if (!chitDoc.exists) {
-            alert('Chit fund not found!');
-            return;
+    // Enhanced view chit details function
+    async function viewChitDetails(chitId) {
+        try {
+            const chitDoc = await db.collection('chits').doc(chitId).get();
+            if (!chitDoc.exists) {
+                alert('Chit fund not found!');
+                return;
+            }
+
+            const chit = chitDoc.data();
+            const progress = calculateChitProgress(chit);
+
+            // Safely populate view modal elements
+            const viewChitName = document.getElementById('viewChitName');
+            const viewChitCode = document.getElementById('viewChitCode');
+            const viewTotalAmount = document.getElementById('viewTotalAmount');
+            const viewMonthlyAmount = document.getElementById('viewMonthlyAmount');
+            const viewDuration = document.getElementById('viewDuration');
+            const viewStartDate = document.getElementById('viewStartDate');
+            const viewMaxMembers = document.getElementById('viewMaxMembers');
+            const viewDescription = document.getElementById('viewDescription');
+            const progressBar = document.getElementById('viewProgressBar');
+            const progressText = document.getElementById('viewProgressText');
+
+            if (viewChitName) viewChitName.textContent = chit.name || '-';
+            if (viewChitCode) viewChitCode.textContent = chit.chitCode || '-';
+            if (viewTotalAmount) viewTotalAmount.textContent = `₹${chit.totalAmount?.toLocaleString() || '0'}`;
+            if (viewMonthlyAmount) viewMonthlyAmount.textContent = `₹${chit.monthlyAmount?.toLocaleString() || '0'}`;
+            if (viewDuration) viewDuration.textContent = `${chit.duration || '0'} months`;
+            if (viewStartDate) viewStartDate.textContent = chit.startDate || '-';
+            if (viewMaxMembers) viewMaxMembers.textContent = `${chit.currentMembers || 0}/${chit.maxMembers || 0}`;
+            if (viewDescription) viewDescription.textContent = chit.description || 'No description provided';
+            
+            if (progressBar) progressBar.style.width = `${progress.percentage}%`;
+            if (progressText) progressText.textContent = `${progress.monthsPassed} of ${progress.totalMonths} months completed (${Math.round(progress.percentage)}%)`;
+
+            const viewChitModalElement = document.getElementById('viewChitModal');
+            if (viewChitModalElement) {
+                viewChitModalElement.setAttribute('data-current-chit', chitId);
+            }
+            
+            await loadChitMembers(chitId);
+            
+            const membersCount = document.getElementById('membersCount');
+            const maxMembersCount = document.getElementById('maxMembersCount');
+            if (membersCount) membersCount.textContent = chit.currentMembers || 0;
+            if (maxMembersCount) maxMembersCount.textContent = chit.maxMembers || 0;
+
+            const refreshMembersBtn = document.getElementById('refreshMembersBtn');
+            if (refreshMembersBtn) {
+                refreshMembersBtn.onclick = () => loadChitMembers(chitId);
+            }
+            
+            const viewChitEditBtn = document.getElementById('viewChitEditBtn');
+            if (viewChitEditBtn) {
+                viewChitEditBtn.onclick = () => {
+                    viewChitModal.hide();
+                    setTimeout(() => editChit(chitId), 300);
+                };
+            }
+
+            viewChitModal.show();
+        } catch (error) {
+            console.error('Error loading chit details:', error);
+            alert('Error loading chit details: ' + error.message);
         }
-
-        const chit = chitDoc.data();
-        const progress = calculateChitProgress(chit);
-
-        // Populate view modal
-        document.getElementById('viewChitName').textContent = chit.name || '-';
-        document.getElementById('viewChitCode').textContent = chit.chitCode || '-';
-        document.getElementById('viewTotalAmount').textContent = `₹${chit.totalAmount?.toLocaleString() || '0'}`;
-        document.getElementById('viewMonthlyAmount').textContent = `₹${chit.monthlyAmount?.toLocaleString() || '0'}`;
-        document.getElementById('viewDuration').textContent = `${chit.duration || '0'} months`;
-        document.getElementById('viewStartDate').textContent = chit.startDate || '-';
-        document.getElementById('viewMaxMembers').textContent = `${chit.currentMembers || 0}/${chit.maxMembers || 0}`;
-        document.getElementById('viewDescription').textContent = chit.description || 'No description provided';
-        
-        // Update progress
-        const progressBar = document.getElementById('viewProgressBar');
-        const progressText = document.getElementById('viewProgressText');
-        progressBar.style.width = `${progress.percentage}%`;
-        progressText.textContent = `${progress.monthsPassed} of ${progress.totalMonths} months completed (${Math.round(progress.percentage)}%)`;
-
-        // Store current chit ID for member operations
-        document.getElementById('viewChitModal').setAttribute('data-current-chit', chitId);
-        
-        // Load members for this chit
-        await loadChitMembers(chitId);
-        
-        // Update members count
-        document.getElementById('membersCount').textContent = chit.currentMembers || 0;
-        document.getElementById('maxMembersCount').textContent = chit.maxMembers || 0;
-
-        // Add refresh button event
-        document.getElementById('refreshMembersBtn').onclick = () => loadChitMembers(chitId);
-        
-        // Add edit button event
-        document.getElementById('viewChitEditBtn').onclick = () => {
-            viewChitModal.hide();
-            setTimeout(() => editChit(chitId), 300);
-        };
-
-        // Show the modal
-        viewChitModal.show();
-    } catch (error) {
-        console.error('Error loading chit details:', error);
-        alert('Error loading chit details: ' + error.message);
     }
-}
     
-  // Edit chit - COMPLETE IMPLEMENTATION
-async function editChit(chitId) {
-    try {
-        const chitDoc = await db.collection('chits').doc(chitId).get();
-        if (!chitDoc.exists) {
-            alert('Chit fund not found!');
-            return;
+    // Edit chit
+    async function editChit(chitId) {
+        try {
+            const chitDoc = await db.collection('chits').doc(chitId).get();
+            if (!chitDoc.exists) {
+                alert('Chit fund not found!');
+                return;
+            }
+
+            const chit = chitDoc.data();
+
+            document.getElementById('editChitId').value = chitId;
+            document.getElementById('editChitName').value = chit.name || '';
+            document.getElementById('editChitCode').value = chit.chitCode || '';
+            document.getElementById('editTotalAmount').value = chit.totalAmount || '';
+            document.getElementById('editDuration').value = chit.duration || '';
+            document.getElementById('editMonthlyAmount').value = chit.monthlyAmount || '';
+            document.getElementById('editStartDate').value = chit.startDate || '';
+            document.getElementById('editMaxMembers').value = chit.maxMembers || '';
+            document.getElementById('editDescription').value = chit.description || '';
+            document.getElementById('editStatus').value = chit.status || 'active';
+
+            editChitModal.show();
+        } catch (error) {
+            console.error('Error loading chit for editing:', error);
+            alert('Error loading chit for editing: ' + error.message);
         }
-
-        const chit = chitDoc.data();
-
-        // Populate edit form
-        document.getElementById('editChitId').value = chitId;
-        document.getElementById('editChitName').value = chit.name || '';
-        document.getElementById('editChitCode').value = chit.chitCode || '';
-        document.getElementById('editTotalAmount').value = chit.totalAmount || '';
-        document.getElementById('editDuration').value = chit.duration || '';
-        document.getElementById('editMonthlyAmount').value = chit.monthlyAmount || '';
-        document.getElementById('editStartDate').value = chit.startDate || '';
-        document.getElementById('editMaxMembers').value = chit.maxMembers || '';
-        document.getElementById('editDescription').value = chit.description || '';
-        document.getElementById('editStatus').value = chit.status || 'active';
-
-        // Show the modal
-        editChitModal.show();
-    } catch (error) {
-        console.error('Error loading chit for editing:', error);
-        alert('Error loading chit for editing: ' + error.message);
     }
-}
     
     // Delete chit
     async function deleteChit(chitId) {
@@ -711,24 +693,24 @@ async function editChit(chitId) {
         }
     }
 
-  // Set loading state
-function setLoading(button, isLoading) {
-    if (!button) return;
-    
-    if (isLoading) {
-        button.disabled = true;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
-    } else {
-        button.disabled = false;
-        if (button === saveChitBtn) {
-            button.innerHTML = 'Create Chit Fund';
-        } else if (button === saveMemberBtn) {
-            button.innerHTML = 'Add Member';
-        } else if (button.id === 'updateChitBtn') {
-            button.innerHTML = 'Update Chit Fund';
+    // Set loading state
+    function setLoading(button, isLoading) {
+        if (!button) return;
+        
+        if (isLoading) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        } else {
+            button.disabled = false;
+            if (button === saveChitBtn) {
+                button.innerHTML = 'Create Chit Fund';
+            } else if (button === saveMemberBtn) {
+                button.innerHTML = 'Add Member';
+            } else if (button.id === 'updateChitBtn') {
+                button.innerHTML = 'Update Chit Fund';
+            }
         }
     }
-}
 
     // Show success message
     function showSuccess(message) {
@@ -745,6 +727,201 @@ function setLoading(button, isLoading) {
         setTimeout(() => {
             alertDiv.remove();
         }, 5000);
+    }
+
+    // Load members for a specific chit
+    async function loadChitMembers(chitId) {
+        try {
+            const membershipsSnapshot = await db.collection('chitMemberships')
+                .where('chitId', '==', chitId)
+                .get();
+            
+            const membersList = document.getElementById('membersList');
+            if (!membersList) return;
+            
+            membersList.innerHTML = '';
+            
+            if (membershipsSnapshot.empty) {
+                membersList.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Members Yet</h5>
+                        <p class="text-muted">Members will appear here after they join and get approved</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            for (const doc of membershipsSnapshot.docs) {
+                const membership = { id: doc.id, ...doc.data() };
+                const userDoc = await db.collection('users').doc(membership.memberId).get();
+                
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    renderChitMember(userData, membership);
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error loading chit members:', error);
+        }
+    }
+
+    // Render member in chit members list
+    function renderChitMember(user, membership) {
+        const membersList = document.getElementById('membersList');
+        if (!membersList) return;
+        
+        const memberElement = document.createElement('div');
+        memberElement.className = 'member-item';
+        memberElement.innerHTML = `
+            <div class="member-header">
+                <div class="member-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="member-info">
+                    <h5 class="member-name">${user.name}</h5>
+                    <p class="member-contact">
+                        <i class="fas fa-envelope me-1"></i>${user.email}
+                        ${user.phone ? `<br><i class="fas fa-phone me-1"></i>${user.phone}` : ''}
+                    </p>
+                </div>
+                <div class="member-status">
+                    <span class="badge ${membership.status === 'approved' ? 'bg-success' : membership.status === 'pending' ? 'bg-warning' : 'bg-secondary'}">
+                        ${membership.status}
+                    </span>
+                </div>
+            </div>
+            <div class="member-stats">
+                <div class="stat">
+                    <label>Joined:</label>
+                    <span>${membership.joinedAt ? new Date(membership.joinedAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                </div>
+                <div class="stat">
+                    <label>Total Paid:</label>
+                    <span>₹${membership.totalPaid || 0}</span>
+                </div>
+            </div>
+            <div class="member-actions">
+                ${membership.status === 'pending' ? `
+                    <button class="btn btn-sm btn-success approve-member-btn" data-membership-id="${membership.id}">
+                        <i class="fas fa-check me-1"></i>Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger reject-member-btn" data-membership-id="${membership.id}">
+                        <i class="fas fa-times me-1"></i>Reject
+                    </button>
+                ` : ''}
+                ${membership.status === 'approved' ? `
+                    <button class="btn btn-sm btn-warning suspend-member-btn" data-membership-id="${membership.id}">
+                        <i class="fas fa-pause me-1"></i>Suspend
+                    </button>
+                ` : ''}
+                <button class="btn btn-sm btn-info view-payments-btn" data-member-id="${user.id}" data-chit-id="${membership.chitId}">
+                    <i class="fas fa-money-bill me-1"></i>Payments
+                </button>
+            </div>
+        `;
+        
+        membersList.appendChild(memberElement);
+        attachMemberActionListeners(memberElement, membership);
+    }
+
+    // Member approval functions
+    function attachMemberActionListeners(element, membership) {
+        const approveBtn = element.querySelector('.approve-member-btn');
+        const rejectBtn = element.querySelector('.reject-member-btn');
+        const suspendBtn = element.querySelector('.suspend-member-btn');
+        const viewPaymentsBtn = element.querySelector('.view-payments-btn');
+
+        if (approveBtn) {
+            approveBtn.addEventListener('click', () => approveMember(membership.id));
+        }
+        if (rejectBtn) {
+            rejectBtn.addEventListener('click', () => rejectMember(membership.id));
+        }
+        if (suspendBtn) {
+            suspendBtn.addEventListener('click', () => suspendMember(membership.id));
+        }
+        if (viewPaymentsBtn) {
+            viewPaymentsBtn.addEventListener('click', () => viewMemberPayments(membership.memberId, membership.chitId));
+        }
+    }
+
+    // Approve member
+    async function approveMember(membershipId) {
+        if (!confirm('Approve this member to join the chit fund?')) return;
+
+        try {
+            await db.collection('chitMemberships').doc(membershipId).update({
+                status: 'approved',
+                approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            showSuccess('Member approved successfully!');
+            
+            const currentChitId = document.getElementById('viewChitModal')?.getAttribute('data-current-chit');
+            if (currentChitId) {
+                await loadChitMembers(currentChitId);
+            }
+
+        } catch (error) {
+            console.error('Error approving member:', error);
+            alert('Error approving member: ' + error.message);
+        }
+    }
+
+    // Reject member
+    async function rejectMember(membershipId) {
+        if (!confirm('Reject this member from joining the chit fund?')) return;
+
+        try {
+            await db.collection('chitMemberships').doc(membershipId).update({
+                status: 'rejected',
+                rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            showSuccess('Member rejected successfully!');
+            
+            const currentChitId = document.getElementById('viewChitModal')?.getAttribute('data-current-chit');
+            if (currentChitId) {
+                await loadChitMembers(currentChitId);
+            }
+
+        } catch (error) {
+            console.error('Error rejecting member:', error);
+            alert('Error rejecting member: ' + error.message);
+        }
+    }
+
+    // Suspend member
+    async function suspendMember(membershipId) {
+        if (!confirm('Suspend this member from the chit fund?')) return;
+
+        try {
+            await db.collection('chitMemberships').doc(membershipId).update({
+                status: 'suspended',
+                suspendedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            showSuccess('Member suspended successfully!');
+            
+            const currentChitId = document.getElementById('viewChitModal')?.getAttribute('data-current-chit');
+            if (currentChitId) {
+                await loadChitMembers(currentChitId);
+            }
+
+        } catch (error) {
+            console.error('Error suspending member:', error);
+            alert('Error suspending member: ' + error.message);
+        }
+    }
+
+    // View member payments
+    async function viewMemberPayments(memberId, chitId) {
+        alert(`View payments for member: ${memberId} in chit: ${chitId}`);
     }
 
     // Global functions for member actions
@@ -771,94 +948,9 @@ function setLoading(button, isLoading) {
     };
 });
 
-// Enhanced view chit details function
-async function viewChitDetails(chitId) {
-    try {
-        const chitDoc = await db.collection('chits').doc(chitId).get();
-        if (!chitDoc.exists) {
-            alert('Chit fund not found!');
-            return;
-        }
-
-        const chit = chitDoc.data();
-        const progress = calculateChitProgress(chit);
-
-        // Populate view modal
-        document.getElementById('viewChitName').textContent = chit.name || '-';
-        document.getElementById('viewChitCode').textContent = chit.chitCode || '-';
-        document.getElementById('viewTotalAmount').textContent = `₹${chit.totalAmount?.toLocaleString() || '0'}`;
-        document.getElementById('viewMonthlyAmount').textContent = `₹${chit.monthlyAmount?.toLocaleString() || '0'}`;
-        document.getElementById('viewDuration').textContent = `${chit.duration || '0'} months`;
-        document.getElementById('viewStartDate').textContent = chit.startDate || '-';
-        document.getElementById('viewMaxMembers').textContent = `${chit.currentMembers || 0}/${chit.maxMembers || 0}`;
-        document.getElementById('viewDescription').textContent = chit.description || 'No description provided';
-        
-        // Update progress
-        const progressBar = document.getElementById('viewProgressBar');
-        const progressText = document.getElementById('viewProgressText');
-        progressBar.style.width = `${progress.percentage}%`;
-        progressText.textContent = `${progress.monthsPassed} of ${progress.totalMonths} months completed (${Math.round(progress.percentage)}%)`;
-
-        // Store current chit ID for member operations
-        document.getElementById('viewChitModal').setAttribute('data-current-chit', chitId);
-        
-        // Load members for this chit
-        await loadChitMembers(chitId);
-        
-        // Update members count
-        document.getElementById('membersCount').textContent = chit.currentMembers || 0;
-        document.getElementById('maxMembersCount').textContent = chit.maxMembers || 0;
-
-        // Add refresh button event
-        document.getElementById('refreshMembersBtn').onclick = () => loadChitMembers(chitId);
-        
-        // Add edit button event
-        document.getElementById('viewChitEditBtn').onclick = () => {
-            viewChitModal.hide();
-            setTimeout(() => editChit(chitId), 300);
-        };
-
-        // Show the modal
-        viewChitModal.show();
-    } catch (error) {
-        console.error('Error loading chit details:', error);
-        alert('Error loading chit details: ' + error.message);
-    }
-}
-
-// Edit chit - IMPLEMENTED
-async function editChit(chitId) {
-    try {
-        const chitDoc = await db.collection('chits').doc(chitId).get();
-        if (!chitDoc.exists) {
-            alert('Chit fund not found!');
-            return;
-        }
-
-        const chit = chitDoc.data();
-
-        // Populate edit form
-        document.getElementById('editChitId').value = chitId;
-        document.getElementById('editChitName').value = chit.name || '';
-        document.getElementById('editChitCode').value = chit.chitCode || '';
-        document.getElementById('editTotalAmount').value = chit.totalAmount || '';
-        document.getElementById('editDuration').value = chit.duration || '';
-        document.getElementById('editMonthlyAmount').value = chit.monthlyAmount || '';
-        document.getElementById('editStartDate').value = chit.startDate || '';
-        document.getElementById('editMaxMembers').value = chit.maxMembers || '';
-        document.getElementById('editDescription').value = chit.description || '';
-        document.getElementById('editStatus').value = chit.status || 'active';
-
-        // Show the modal
-        editChitModal.show();
-    } catch (error) {
-        console.error('Error loading chit for editing:', error);
-        alert('Error loading chit for editing: ' + error.message);
-    }
-}
-
-// Update chit fund - COMPLETE IMPLEMENTATION
+// Update chit fund function (outside DOMContentLoaded but not duplicated)
 async function updateChitFund() {
+    const db = firebase.firestore();
     const chitId = document.getElementById('editChitId').value;
     const name = document.getElementById('editChitName').value;
     const totalAmount = parseFloat(document.getElementById('editTotalAmount').value);
@@ -875,7 +967,9 @@ async function updateChitFund() {
     }
 
     try {
-        setLoading(document.getElementById('updateChitBtn'), true);
+        const updateChitBtn = document.getElementById('updateChitBtn');
+        updateChitBtn.disabled = true;
+        updateChitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
 
         const updateData = {
             name: name,
@@ -891,241 +985,20 @@ async function updateChitFund() {
 
         await db.collection('chits').doc(chitId).update(updateData);
 
-        // Close modal and show success
-        editChitModal.hide();
-        showSuccess('Chit fund updated successfully!');
+        document.getElementById('editChitForm').reset();
+        bootstrap.Modal.getInstance(document.getElementById('editChitModal')).hide();
         
-        // Reload chit funds
-        await loadChitFunds();
-        await updateStats();
+        alert('Chit fund updated successfully!');
+        
+        // Reload the page to reflect changes
+        window.location.reload();
 
     } catch (error) {
         console.error('Error updating chit fund:', error);
         alert('Error updating chit fund: ' + error.message);
-    } finally {
-        setLoading(document.getElementById('updateChitBtn'), false);
-    }
-}
-
-// Add event listeners for the new modals
-document.addEventListener('DOMContentLoaded', function() {
-    // Ensure these elements exist before adding listeners
-    const updateChitBtn = document.getElementById('updateChitBtn');
-    if (updateChitBtn) {
-        updateChitBtn.addEventListener('click', updateChitFund);
-    }
-    
-    // Add modal event listeners for cleanup
-    const editChitModalElement = document.getElementById('editChitModal');
-    if (editChitModalElement) {
-        editChitModalElement.addEventListener('hidden.bs.modal', function() {
-            document.getElementById('editChitForm').reset();
-        });
-    }
-    
-    const createChitModalElement = document.getElementById('createChitModal');
-    if (createChitModalElement) {
-        createChitModalElement.addEventListener('hidden.bs.modal', function() {
-            document.getElementById('createChitForm').reset();
-        });
-    }
-});
-
-// Load members for a specific chit - ADD THIS FUNCTION
-async function loadChitMembers(chitId) {
-    try {
-        const membershipsSnapshot = await db.collection('chitMemberships')
-            .where('chitId', '==', chitId)
-            .get();
         
-        const membersList = document.getElementById('membersList');
-        membersList.innerHTML = '';
-        
-        if (membershipsSnapshot.empty) {
-            membersList.innerHTML = `
-                <div class="text-center py-5">
-                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No Members Yet</h5>
-                    <p class="text-muted">Members will appear here after they join and get approved</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Load member details for each membership
-        for (const doc of membershipsSnapshot.docs) {
-            const membership = { id: doc.id, ...doc.data() };
-            const userDoc = await db.collection('users').doc(membership.memberId).get();
-            
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                renderChitMember(userData, membership);
-            }
-        }
-        
-    } catch (error) {
-        console.error('Error loading chit members:', error);
+        const updateChitBtn = document.getElementById('updateChitBtn');
+        updateChitBtn.disabled = false;
+        updateChitBtn.innerHTML = 'Update Chit Fund';
     }
-}
-
-// Render member in chit members list - ADD THIS FUNCTION
-function renderChitMember(user, membership) {
-    const membersList = document.getElementById('membersList');
-    
-    const memberElement = document.createElement('div');
-    memberElement.className = 'member-item';
-    memberElement.innerHTML = `
-        <div class="member-header">
-            <div class="member-avatar">
-                <i class="fas fa-user"></i>
-            </div>
-            <div class="member-info">
-                <h5 class="member-name">${user.name}</h5>
-                <p class="member-contact">
-                    <i class="fas fa-envelope me-1"></i>${user.email}
-                    ${user.phone ? `<br><i class="fas fa-phone me-1"></i>${user.phone}` : ''}
-                </p>
-            </div>
-            <div class="member-status">
-                <span class="badge ${membership.status === 'approved' ? 'bg-success' : membership.status === 'pending' ? 'bg-warning' : 'bg-secondary'}">
-                    ${membership.status}
-                </span>
-            </div>
-        </div>
-        <div class="member-stats">
-            <div class="stat">
-                <label>Joined:</label>
-                <span>${membership.joinedAt ? new Date(membership.joinedAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
-            </div>
-            <div class="stat">
-                <label>Total Paid:</label>
-                <span>₹${membership.totalPaid || 0}</span>
-            </div>
-        </div>
-        <div class="member-actions">
-            ${membership.status === 'pending' ? `
-                <button class="btn btn-sm btn-success approve-member-btn" data-membership-id="${membership.id}">
-                    <i class="fas fa-check me-1"></i>Approve
-                </button>
-                <button class="btn btn-sm btn-danger reject-member-btn" data-membership-id="${membership.id}">
-                    <i class="fas fa-times me-1"></i>Reject
-                </button>
-            ` : ''}
-            ${membership.status === 'approved' ? `
-                <button class="btn btn-sm btn-warning suspend-member-btn" data-membership-id="${membership.id}">
-                    <i class="fas fa-pause me-1"></i>Suspend
-                </button>
-            ` : ''}
-            <button class="btn btn-sm btn-info view-payments-btn" data-member-id="${user.id}" data-chit-id="${membership.chitId}">
-                <i class="fas fa-money-bill me-1"></i>Payments
-            </button>
-        </div>
-    `;
-    
-    membersList.appendChild(memberElement);
-    
-    // Add event listeners
-    attachMemberActionListeners(memberElement, membership);
-}
-
-// Member approval functions - ADD THESE
-function attachMemberActionListeners(element, membership) {
-    const approveBtn = element.querySelector('.approve-member-btn');
-    const rejectBtn = element.querySelector('.reject-member-btn');
-    const suspendBtn = element.querySelector('.suspend-member-btn');
-    const viewPaymentsBtn = element.querySelector('.view-payments-btn');
-
-    if (approveBtn) {
-        approveBtn.addEventListener('click', () => approveMember(membership.id));
-    }
-    if (rejectBtn) {
-        rejectBtn.addEventListener('click', () => rejectMember(membership.id));
-    }
-    if (suspendBtn) {
-        suspendBtn.addEventListener('click', () => suspendMember(membership.id));
-    }
-    if (viewPaymentsBtn) {
-        viewPaymentsBtn.addEventListener('click', () => viewMemberPayments(membership.memberId, membership.chitId));
-    }
-}
-
-// Approve member
-async function approveMember(membershipId) {
-    if (!confirm('Approve this member to join the chit fund?')) return;
-
-    try {
-        await db.collection('chitMemberships').doc(membershipId).update({
-            status: 'approved',
-            approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        showSuccess('Member approved successfully!');
-        
-        // Reload members list
-        const currentChitId = document.getElementById('viewChitModal').getAttribute('data-current-chit');
-        if (currentChitId) {
-            await loadChitMembers(currentChitId);
-        }
-
-    } catch (error) {
-        console.error('Error approving member:', error);
-        alert('Error approving member: ' + error.message);
-    }
-}
-
-// Reject member
-async function rejectMember(membershipId) {
-    if (!confirm('Reject this member from joining the chit fund?')) return;
-
-    try {
-        await db.collection('chitMemberships').doc(membershipId).update({
-            status: 'rejected',
-            rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        showSuccess('Member rejected successfully!');
-        
-        // Reload members list
-        const currentChitId = document.getElementById('viewChitModal').getAttribute('data-current-chit');
-        if (currentChitId) {
-            await loadChitMembers(currentChitId);
-        }
-
-    } catch (error) {
-        console.error('Error rejecting member:', error);
-        alert('Error rejecting member: ' + error.message);
-    }
-}
-
-// Suspend member
-async function suspendMember(membershipId) {
-    if (!confirm('Suspend this member from the chit fund?')) return;
-
-    try {
-        await db.collection('chitMemberships').doc(membershipId).update({
-            status: 'suspended',
-            suspendedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        showSuccess('Member suspended successfully!');
-        
-        // Reload members list
-        const currentChitId = document.getElementById('viewChitModal').getAttribute('data-current-chit');
-        if (currentChitId) {
-            await loadChitMembers(currentChitId);
-        }
-
-    } catch (error) {
-        console.error('Error suspending member:', error);
-        alert('Error suspending member: ' + error.message);
-    }
-}
-
-// View member payments
-async function viewMemberPayments(memberId, chitId) {
-    // Implementation for viewing member payments
-    alert(`View payments for member: ${memberId} in chit: ${chitId}`);
 }
