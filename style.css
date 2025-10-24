@@ -877,4 +877,117 @@ body {
     animation: slideInUp 0.5s ease-out;
 }
 
+/* Profile Styles */
+.profile-avatar {
+    padding: 20px;
+    border-radius: 50%;
+    background: #f8f9fa;
+    display: inline-block;
+}
+
+.info-item, .stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.info-item label, .stat-item label {
+    font-weight: 500;
+    color: #666;
+}
+
+/* Payment Styles */
+.payment-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+
+.payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.payment-details {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.payment-details span {
+    font-size: 0.875rem;
+    color: #666;
+}
+
+/* Summary Cards */
+.summary-card {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    border-left: 4px solid;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.summary-card i {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.summary-card span {
+    display: block;
+    font-size: 0.875rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.summary-card strong {
+    font-size: 1.25rem;
+}
+
+/* Modal Enhancements */
+.modal-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-footer {
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Tab Styles */
+.nav-tabs .nav-link {
+    border: none;
+    color: #666;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    border-bottom: 3px solid #0d6efd;
+    color: #0d6efd;
+    background: transparent;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .chit-details-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .payment-details {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .summary-card {
+        margin-bottom: 15px;
+    }
+}
+
 
