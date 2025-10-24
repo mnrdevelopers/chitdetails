@@ -9,7 +9,8 @@ import {
     query, 
     where,
     serverTimestamp,
-    orderBy
+    orderBy,
+    deleteDoc
 } from './firebase-config.js';
 
 // Get chit ID from URL parameters
@@ -31,6 +32,7 @@ const receiverSelect = document.getElementById('receiver-select');
 const saveReceiverBtn = document.getElementById('save-receiver');
 const prevMonthBtn = document.getElementById('prev-month');
 const nextMonthBtn = document.getElementById('next-month');
+const addMemberForm = document.getElementById('add-member-form');
 
 // Global variables
 let currentChit = null;
@@ -92,7 +94,7 @@ async function loadMembers() {
         });
         
         // If no members exist, create placeholder members
-        if (members.length === 0) {
+        if (members.length === 0 && currentChit.totalMembers) {
             await createPlaceholderMembers();
             await loadMembers(); // Reload members
         }
@@ -106,7 +108,7 @@ async function loadMembers() {
 
 // Create placeholder members based on total members count
 async function createPlaceholderMembers() {
-    if (!currentChit) return;
+    if (!currentChit || !currentChit.totalMembers) return;
     
     try {
         for (let i = 1; i <= currentChit.totalMembers; i++) {
@@ -243,6 +245,7 @@ async function togglePaymentStatus(memberId, currentStatus) {
         
     } catch (error) {
         console.error('Error updating payment status:', error);
+        alert('Error updating payment status. Please try again.');
     }
 }
 
@@ -302,7 +305,10 @@ function updateReceiverSelect() {
 // Save receiver for current month
 if (saveReceiverBtn) {
     saveReceiverBtn.addEventListener('click', async () => {
-        if (!currentChit || !receiverSelect.value) return;
+        if (!currentChit || !receiverSelect.value) {
+            alert('Please select a member to receive this month\'s chit.');
+            return;
+        }
         
         try {
             // Check if receiver already exists for this month
@@ -360,6 +366,43 @@ if (nextMonthBtn) {
     });
 }
 
+// Add member functionality
+if (addMemberForm) {
+    addMemberForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const memberName = document.getElementById('member-name').value.trim();
+        const memberPhone = document.getElementById('member-phone').value.trim();
+        
+        if (!memberName || !memberPhone) {
+            alert('Please fill in all fields.');
+            return;
+        }
+        
+        try {
+            // Add member to Firestore
+            await addDoc(collection(db, 'chits', currentChit.id, 'members'), {
+                name: memberName,
+                phone: memberPhone,
+                createdAt: serverTimestamp()
+            });
+            
+            // Close modal and reset form
+            document.getElementById('add-member-modal').classList.remove('active');
+            addMemberForm.reset();
+            
+            // Reload members
+            await loadMembers();
+            
+            alert('Member added successfully!');
+            
+        } catch (error) {
+            console.error('Error adding member:', error);
+            alert('Error adding member. Please try again.');
+        }
+    });
+}
+
 // Update chit summary
 function updateSummary() {
     if (!currentChit) return;
@@ -377,12 +420,19 @@ function updateSummary() {
 
 // Calculate months completed
 function calculateMonthsCompleted(startDate, totalMonths) {
-    const start = new Date(startDate);
-    const now = new Date();
-    const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + 
-                      (now.getMonth() - start.getMonth());
+    if (!startDate) return 0;
     
-    return Math.min(Math.max(0, monthsDiff + 1), totalMonths);
+    try {
+        const start = new Date(startDate);
+        const now = new Date();
+        const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + 
+                          (now.getMonth() - start.getMonth());
+        
+        return Math.min(Math.max(0, monthsDiff), totalMonths);
+    } catch (error) {
+        console.error('Error calculating months completed:', error);
+        return 0;
+    }
 }
 
 // Initialize chit page when DOM is loaded
