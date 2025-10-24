@@ -990,4 +990,209 @@ body {
     }
 }
 
+/* Enhanced Profile Styles */
+.profile-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.profile-info h5, .profile-stats h5 {
+    color: var(--dark);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary);
+}
+
+.info-item, .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.info-item:last-child, .stat-item:last-child {
+    border-bottom: none;
+}
+
+.info-item label, .stat-item label {
+    font-weight: 500;
+    color: var(--gray);
+    margin: 0;
+}
+
+.info-item span, .stat-item span {
+    font-weight: 600;
+    color: var(--dark);
+}
+
+/* Detail Cards for Modals */
+.detail-card {
+    background: var(--light);
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.detail-card h6 {
+    color: var(--dark);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+/* Auction Styles */
+.auction-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--warning);
+}
+
+.auction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.auction-chit-name {
+    color: var(--dark);
+    margin: 0;
+}
+
+.auction-date {
+    margin: 0.25rem 0 0 0;
+}
+
+.auction-details {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.bid-amount {
+    font-size: 1.1rem;
+}
+
+.bid-reason {
+    font-style: italic;
+}
+
+.auction-result {
+    font-weight: 500;
+}
+
+/* Bid Preview */
+.bid-preview {
+    border-left: 4px solid var(--warning) !important;
+}
+
+.bid-preview h6 {
+    color: var(--dark);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.bid-preview p {
+    margin: 0;
+    color: var(--gray);
+}
+
+/* Payment Items Enhancement */
+.payment-item {
+    background: white;
+    padding: 1.25rem;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid var(--success);
+    margin-bottom: 1rem;
+}
+
+.payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.payment-month {
+    font-weight: 600;
+    color: var(--dark);
+    margin: 0;
+}
+
+.payment-details {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: var(--gray);
+    flex-wrap: wrap;
+}
+
+/* Responsive Design for Modals */
+@media (max-width: 768px) {
+    .auction-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .payment-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .payment-details {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .info-item, .stat-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+
+/* Loading States */
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-right-color: transparent;
+    animation: spinner 0.75s linear infinite;
+}
+
+@keyframes spinner {
+    to { transform: rotate(360deg); }
+}
+
+/* Success Messages */
+.alert-success {
+    border-left: 4px solid var(--success);
+}
+
+.alert-warning {
+    border-left: 4px solid var(--warning);
+}
+
+.alert-danger {
+    border-left: 4px solid var(--danger);
+}
+
+
 
