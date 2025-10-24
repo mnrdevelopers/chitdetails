@@ -19,7 +19,7 @@ onAuthStateChanged(auth, (user) => {
         }
         
         // Redirect from login page if needed
-        if (window.location.pathname.endsWith('index.html')) {
+        if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
             window.location.href = 'dashboard.html';
         }
     } else {
@@ -27,7 +27,7 @@ onAuthStateChanged(auth, (user) => {
         console.log('User is signed out');
         
         // Redirect to login page if not already there
-        if (!window.location.pathname.endsWith('index.html')) {
+        if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
             window.location.href = 'index.html';
         }
     }
@@ -44,6 +44,12 @@ if (loginForm) {
         const messageElement = document.getElementById('auth-message');
         
         try {
+            // Show loading state
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Logging in...';
+            submitBtn.disabled = true;
+            
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             console.log('User logged in:', userCredential.user);
             
@@ -53,10 +59,14 @@ if (loginForm) {
             // Show success message
             showMessage(messageElement, 'Login successful! Redirecting...', 'success');
             
-            // Redirect to dashboard (handled by auth state change)
         } catch (error) {
             console.error('Login error:', error);
             showMessage(messageElement, getAuthErrorMessage(error), 'error');
+            
+            // Reset button state
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            submitBtn.textContent = 'Login';
+            submitBtn.disabled = false;
         }
     });
 }
@@ -73,6 +83,12 @@ if (signupForm) {
         const messageElement = document.getElementById('auth-message');
         
         try {
+            // Show loading state
+            const submitBtn = signupForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Creating Account...';
+            submitBtn.disabled = true;
+            
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             console.log('User created:', userCredential.user);
             
@@ -82,11 +98,19 @@ if (signupForm) {
             // Show success message
             showMessage(messageElement, 'Account created successfully! You can now login.', 'success');
             
-            // Switch to login tab
-            document.getElementById('login-tab').click();
+            // Switch to login tab after a delay
+            setTimeout(() => {
+                document.getElementById('login-tab').click();
+            }, 2000);
+            
         } catch (error) {
             console.error('Signup error:', error);
             showMessage(messageElement, getAuthErrorMessage(error), 'error');
+            
+            // Reset button state
+            const submitBtn = signupForm.querySelector('button[type="submit"]');
+            submitBtn.textContent = 'Sign Up';
+            submitBtn.disabled = false;
         }
     });
 }
@@ -100,6 +124,7 @@ if (logoutBtn) {
             console.log('User signed out');
         } catch (error) {
             console.error('Logout error:', error);
+            alert('Error logging out. Please try again.');
         }
     });
 }
@@ -169,6 +194,8 @@ function getAuthErrorMessage(error) {
             return 'Incorrect password.';
         case 'auth/too-many-requests':
             return 'Too many failed attempts. Please try again later.';
+        case 'auth/network-request-failed':
+            return 'Network error. Please check your internet connection.';
         default:
             return 'An error occurred. Please try again.';
     }
@@ -180,21 +207,32 @@ function setupModal(modalId, openBtnId, closeBtnClass) {
     const openBtn = document.getElementById(openBtnId);
     const closeBtns = document.querySelectorAll(`.${closeBtnClass}`);
     
-    if (openBtn) {
+    if (openBtn && modal) {
         openBtn.addEventListener('click', () => {
             modal.classList.add('active');
         });
     }
     
-    closeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            modal.classList.remove('active');
+    if (closeBtns) {
+        closeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
         });
-    });
+    }
     
     // Close modal when clicking outside
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    }
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
             modal.classList.remove('active');
         }
     });
@@ -210,5 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add member modal
     if (document.getElementById('add-member-modal')) {
         setupModal('add-member-modal', 'add-member-btn', 'close-modal');
+    }
+    
+    // Set minimum date for start date to today
+    const startDateInput = document.getElementById('start-date');
+    if (startDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        startDateInput.min = today;
     }
 });
