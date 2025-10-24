@@ -6,25 +6,48 @@ import {
     query, 
     where, 
     orderBy,
-    serverTimestamp,
-    onSnapshot 
+    serverTimestamp
 } from './firebase-config.js';
 import { auth } from './firebase-config.js';
 
 // DOM Elements
 const chitList = document.getElementById('chit-list');
 const createChitForm = document.getElementById('create-chit-form');
+const createChitBtn = document.getElementById('create-chit-btn');
+const userNameElement = document.getElementById('user-name');
+
+// Set current date as default for start date
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toISOString().split('T')[0];
+    const startDateInput = document.getElementById('start-date');
+    if (startDateInput) {
+        startDateInput.value = today;
+        startDateInput.min = today; // Prevent selecting past dates
+    }
+});
+
+// Update user name in header
+function updateUserName() {
+    const user = auth.currentUser;
+    if (user && userNameElement) {
+        userNameElement.textContent = user.displayName || user.email.split('@')[0];
+    }
+}
 
 // Load user's chit groups
 async function loadChitGroups() {
     try {
         const user = auth.currentUser;
         if (!user) {
-            console.log('No user found');
+            console.log('No user found, redirecting to login...');
+            window.location.href = 'index.html';
             return;
         }
         
         console.log('Loading chits for user:', user.uid);
+        
+        // Show loading state
+        chitList.innerHTML = '<div class="loading-message">Loading your chit groups...</div>';
         
         // Query chit groups created by current user
         const q = query(
@@ -40,7 +63,9 @@ async function loadChitGroups() {
         
         if (querySnapshot.empty) {
             chitList.innerHTML = `
-                <div class="text-center">
+                <div class="empty-state">
+                    <div class="empty-icon">💸</div>
+                    <h3>No Chit Groups Yet</h3>
                     <p>You haven't created any chit groups yet.</p>
                     <p>Click "Create New Chit" to get started!</p>
                 </div>
@@ -59,7 +84,14 @@ async function loadChitGroups() {
         
     } catch (error) {
         console.error('Error loading chit groups:', error);
-        chitList.innerHTML = '<p class="error">Error loading chit groups. Please try again.</p>';
+        chitList.innerHTML = `
+            <div class="error-state">
+                <div class="error-icon">⚠️</div>
+                <h3>Error Loading Chit Groups</h3>
+                <p>There was a problem loading your chit groups.</p>
+                <button onclick="loadChitGroups()" class="btn-primary">Try Again</button>
+            </div>
+        `;
     }
 }
 
@@ -73,23 +105,59 @@ function displayChitCard(chitId, chit) {
     
     const totalAmount = chit.monthlyAmount * chit.totalMembers;
     const monthsCompleted = calculateMonthsCompleted(chit.startDate, chit.totalMonths);
+    const progressPercentage = (monthsCompleted / chit.totalMonths) * 100;
     
     const chitCard = document.createElement('div');
     chitCard.className = 'chit-card';
     chitCard.innerHTML = `
-        <h3>${chit.name}</h3>
-        <p>Monthly: ₹${chit.monthlyAmount.toLocaleString()}</p>
-        <p>Members: ${chit.totalMembers}</p>
-        <div class="chit-meta">
-            <span>Months: ${monthsCompleted}/${chit.totalMonths}</span>
-            <span>Total: ₹${totalAmount.toLocaleString()}</span>
+        <div class="chit-card-header">
+            <h3>${chit.name}</h3>
+            <span class="chit-status ${monthsCompleted >= chit.totalMonths ? 'completed' : 'active'}">
+                ${monthsCompleted >= chit.totalMonths ? 'Completed' : 'Active'}
+            </span>
+        </div>
+        <div class="chit-card-body">
+            <div class="chit-info">
+                <div class="info-item">
+                    <span class="label">Monthly:</span>
+                    <span class="value">₹${chit.monthlyAmount.toLocaleString()}</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Members:</span>
+                    <span class="value">${chit.totalMembers}</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Total Amount:</span>
+                    <span class="value">₹${totalAmount.toLocaleString()}</span>
+                </div>
+            </div>
+            <div class="progress-section">
+                <div class="progress-info">
+                    <span>Progress: ${monthsCompleted}/${chit.totalMonths} months</span>
+                    <span>${Math.round(progressPercentage)}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progressPercentage}%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="chit-card-actions">
+            <button class="btn-view" data-chit-id="${chitId}">View Details</button>
         </div>
     `;
     
-    // Make card clickable to navigate to chit details
-    chitCard.style.cursor = 'pointer';
-    chitCard.addEventListener('click', () => {
+    // Add click event to view button
+    const viewBtn = chitCard.querySelector('.btn-view');
+    viewBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         window.location.href = `chit.html?id=${chitId}`;
+    });
+    
+    // Make entire card clickable (except the view button)
+    chitCard.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('btn-view')) {
+            window.location.href = `chit.html?id=${chitId}`;
+        }
     });
     
     chitList.appendChild(chitCard);
@@ -102,10 +170,17 @@ function calculateMonthsCompleted(startDate, totalMonths) {
     try {
         const start = new Date(startDate);
         const now = new Date();
-        const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + 
-                          (now.getMonth() - start.getMonth());
         
-        return Math.min(Math.max(0, monthsDiff), totalMonths);
+        // Calculate months difference
+        let months = (now.getFullYear() - start.getFullYear()) * 12;
+        months -= start.getMonth();
+        months += now.getMonth();
+        
+        // Add 1 because we count from the start month
+        const monthsCompleted = Math.max(0, months + 1);
+        
+        // Don't exceed total months
+        return Math.min(monthsCompleted, totalMonths);
     } catch (error) {
         console.error('Error calculating months completed:', error);
         return 0;
@@ -120,6 +195,7 @@ if (createChitForm) {
         const user = auth.currentUser;
         if (!user) {
             alert('Please log in to create a chit group.');
+            window.location.href = 'index.html';
             return;
         }
         
@@ -137,17 +213,28 @@ if (createChitForm) {
             if (!name) {
                 throw new Error('Chit name is required');
             }
-            if (isNaN(monthlyAmount) || monthlyAmount < 1) {
-                throw new Error('Monthly amount must be a positive number');
+            if (name.length < 3) {
+                throw new Error('Chit name must be at least 3 characters long');
             }
-            if (isNaN(totalMembers) || totalMembers < 2 || totalMembers > 50) {
-                throw new Error('Total members must be between 2 and 50');
+            if (isNaN(monthlyAmount) || monthlyAmount < 1000) {
+                throw new Error('Monthly amount must be at least ₹1000');
             }
-            if (isNaN(totalMonths) || totalMonths < 2 || totalMonths > 60) {
-                throw new Error('Total months must be between 2 and 60');
+            if (isNaN(totalMembers) || totalMembers < 5 || totalMembers > 50) {
+                throw new Error('Total members must be between 5 and 50');
+            }
+            if (isNaN(totalMonths) || totalMonths < 5 || totalMonths > 60) {
+                throw new Error('Total months must be between 5 and 60');
             }
             if (!startDate) {
                 throw new Error('Start date is required');
+            }
+            
+            // Check if start date is in the future
+            const selectedDate = new Date(startDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (selectedDate < today) {
+                throw new Error('Start date cannot be in the past');
             }
             
             const formData = {
@@ -157,6 +244,7 @@ if (createChitForm) {
                 totalMonths: totalMonths,
                 startDate: startDate,
                 ownerId: user.uid,
+                ownerEmail: user.email,
                 createdAt: serverTimestamp(),
                 currentMonth: 1
             };
@@ -176,6 +264,10 @@ if (createChitForm) {
             // Close modal and reset form
             document.getElementById('create-chit-modal').classList.remove('active');
             createChitForm.reset();
+            
+            // Reset default date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('start-date').value = today;
             
             // Reset button state
             submitBtn.textContent = originalText;
@@ -222,6 +314,7 @@ function showTempMessage(message, type) {
     messageDiv.style.textAlign = 'center';
     messageDiv.style.padding = '1rem';
     messageDiv.style.borderRadius = '5px';
+    messageDiv.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
     
     document.body.appendChild(messageDiv);
     
@@ -233,62 +326,24 @@ function showTempMessage(message, type) {
     }, 3000);
 }
 
-// Setup real-time listener (optional - for automatic updates)
-function setupRealTimeListener() {
-    try {
-        const user = auth.currentUser;
-        if (!user) return;
-        
-        const q = query(
-            collection(db, 'chits'),
-            where('ownerId', '==', user.uid),
-            orderBy('createdAt', 'desc')
-        );
-        
-        // Set up real-time listener
-        return onSnapshot(q, (querySnapshot) => {
-            console.log('Real-time update received');
-            updateChitList(querySnapshot);
-        }, (error) => {
-            console.error('Error in real-time listener:', error);
-        });
-        
-    } catch (error) {
-        console.error('Error setting up real-time listener:', error);
-    }
-}
-
-// Update chit list with real-time data
-function updateChitList(querySnapshot) {
-    // Clear existing list
-    chitList.innerHTML = '';
-    
-    if (querySnapshot.empty) {
-        chitList.innerHTML = `
-            <div class="text-center">
-                <p>You haven't created any chit groups yet.</p>
-                <p>Click "Create New Chit" to get started!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    console.log('Real-time: Found', querySnapshot.size, 'chits');
-    
-    // Display chit groups
-    querySnapshot.forEach((doc) => {
-        const chit = doc.data();
-        displayChitCard(doc.id, chit);
-    });
-}
-
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Dashboard initialized');
     
-    // Load chits immediately
-    loadChitGroups();
+    // Update user name
+    updateUserName();
     
-    // Also set up real-time listener for future updates
-    setupRealTimeListener();
+    // Check authentication
+    const user = auth.currentUser;
+    if (!user) {
+        console.log('No authenticated user, redirecting to login...');
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    // Load chits
+    loadChitGroups();
 });
+
+// Make loadChitGroups available globally for retry button
+window.loadChitGroups = loadChitGroups;
