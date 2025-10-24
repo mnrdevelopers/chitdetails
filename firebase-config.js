@@ -41,6 +41,7 @@ const db = getFirestore(app);
 
 // Export Firebase services
 export { 
+    app,
     auth, 
     db, 
     createUserWithEmailAndPassword, 
@@ -60,5 +61,3 @@ export {
     serverTimestamp,
     onSnapshot
 };
-
-
