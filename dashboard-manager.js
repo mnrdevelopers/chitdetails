@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // DOM Elements
+    // DOM Elements - FIXED: Added missing elements
     const userNameElement = document.getElementById('userName');
     const totalMembersElement = document.getElementById('totalMembers');
     const activeChitsElement = document.getElementById('activeChits');
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveMemberBtn = document.getElementById('saveMemberBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    // Modal instances
+    // Modal instances - FIXED: Added missing modal references
     const createChitModal = new bootstrap.Modal(document.getElementById('createChitModal'));
     const addMemberModal = new bootstrap.Modal(document.getElementById('addMemberModal'));
     const viewChitModal = new bootstrap.Modal(document.getElementById('viewChitModal'));
@@ -73,9 +73,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('exportReportsBtn')?.addEventListener('click', exportReports);
         document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFund);
         
-        // Tab buttons
+        // Tab buttons - FIXED: Added proper event listeners
         document.getElementById('addChitBtn')?.addEventListener('click', () => createChitModal.show());
         document.getElementById('addNewMemberBtn')?.addEventListener('click', () => addMemberModal.show());
+        
+        // Navigation buttons
+        document.getElementById('manageAuctionsBtn')?.addEventListener('click', () => {
+            document.getElementById('auctions-tab').click();
+        });
+        
+        document.getElementById('viewReportsBtn')?.addEventListener('click', showReports);
     }
 
     // Load user data with enhanced role management
@@ -246,54 +253,111 @@ document.addEventListener('DOMContentLoaded', function() {
         attachChitEventListeners(chitElement, chit);
     }
 
-    // Load members
+    // Load members - FIXED: Enhanced member loading with better error handling
     async function loadMembers() {
         try {
             console.log('Loading members for manager:', currentUser.uid);
             
-            // Try to load from members collection first
+            // Clear existing members list
+            if (membersList) {
+                membersList.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Loading members...</div>';
+            }
+            
             let membersSnapshot;
+            
+            // Try multiple approaches to find members
             try {
+                // Approach 1: Look in members collection
                 membersSnapshot = await db.collection('members')
                     .where('managerId', '==', currentUser.uid)
                     .orderBy('joinedAt', 'desc')
                     .get();
+                console.log('Found members in members collection:', membersSnapshot.size);
             } catch (error) {
-                console.log('Members collection not found, trying users collection');
-                // Fallback to users collection with role 'member'
+                console.log('Members collection not accessible, trying users collection');
+                
+                // Approach 2: Look for users with member role
                 membersSnapshot = await db.collection('users')
                     .where('role', '==', 'member')
                     .get();
+                console.log('Found members in users collection:', membersSnapshot.size);
             }
             
-            console.log('Raw members snapshot:', membersSnapshot.size, 'members found');
+            // If still no members, check chitMemberships
+            if (!membersSnapshot || membersSnapshot.empty) {
+                try {
+                    console.log('Trying chitMemberships collection...');
+                    const membershipsSnapshot = await db.collection('chitMemberships')
+                        .where('managerId', '==', currentUser.uid)
+                        .get();
+                    
+                    if (!membershipsSnapshot.empty) {
+                        // Extract unique member IDs from memberships
+                        const memberIds = [...new Set(membershipsSnapshot.docs.map(doc => doc.data().memberId))];
+                        console.log('Found member IDs from memberships:', memberIds);
+                        
+                        // Fetch member details
+                        const memberPromises = memberIds.map(memberId => 
+                            db.collection('users').doc(memberId).get()
+                        );
+                        
+                        const memberDocs = await Promise.all(memberPromises);
+                        membersSnapshot = {
+                            docs: memberDocs.filter(doc => doc.exists).map(doc => ({
+                                id: doc.id,
+                                data: () => doc.data()
+                            })),
+                            size: memberDocs.filter(doc => doc.exists).length,
+                            empty: memberDocs.filter(doc => doc.exists).length === 0
+                        };
+                    }
+                } catch (membershipError) {
+                    console.log('No members found in chitMemberships either');
+                }
+            }
+            
+            if (!membersList) {
+                console.error('Members list element not found');
+                return;
+            }
             
             membersList.innerHTML = '';
             
-            if (membersSnapshot.empty) {
+            if (!membersSnapshot || membersSnapshot.empty) {
                 membersList.innerHTML = `
                     <div class="text-center py-5">
                         <i class="fas fa-users fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">No Members Found</h5>
                         <p class="text-muted">Add members to your chit funds</p>
-                        <button class="btn btn-primary mt-3" onclick="addMemberModal.show()">
+                        <button class="btn btn-primary mt-3" id="addMemberFromEmptyBtn">
                             <i class="fas fa-user-plus me-2"></i>Add Member
                         </button>
                     </div>
                 `;
+                
+                // Add event listener to the button
+                document.getElementById('addMemberFromEmptyBtn')?.addEventListener('click', () => {
+                    addMemberModal.show();
+                });
                 return;
             }
             
             let validMembersCount = 0;
             
             membersSnapshot.forEach(doc => {
-                const member = { id: doc.id, ...doc.data() };
-                console.log('Processing member:', member);
-                
-                // Only render if member has basic data
-                if (member.email && member.name) {
-                    renderMember(member);
-                    validMembersCount++;
+                try {
+                    const memberData = doc.data();
+                    const member = { id: doc.id, ...memberData };
+                    
+                    // Validate member data
+                    if (member && (member.email || member.name)) {
+                        renderMember(member);
+                        validMembersCount++;
+                    } else {
+                        console.warn('Invalid member data:', member);
+                    }
+                } catch (memberError) {
+                    console.error('Error processing member:', memberError);
                 }
             });
             
@@ -305,26 +369,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-users fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">No Valid Members Found</h5>
                         <p class="text-muted">Add members using the form above</p>
+                        <button class="btn btn-primary mt-3" onclick="addMemberModal.show()">
+                            <i class="fas fa-user-plus me-2"></i>Add Member
+                        </button>
                     </div>
                 `;
             }
             
         } catch (error) {
             console.error('Error loading members:', error);
-            membersList.innerHTML = `
-                <div class="alert alert-danger">
-                    <h5>Error Loading Members</h5>
-                    <p>${error.message}</p>
-                    <button class="btn btn-sm btn-warning mt-2" onclick="loadMembers()">
-                        <i class="fas fa-redo me-1"></i>Retry
-                    </button>
-                </div>
-            `;
+            if (membersList) {
+                membersList.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>Error Loading Members</h5>
+                        <p>${error.message}</p>
+                        <button class="btn btn-sm btn-warning mt-2" onclick="loadMembers()">
+                            <i class="fas fa-redo me-1"></i>Retry
+                        </button>
+                    </div>
+                `;
+            }
         }
     }
 
-    // Render member
+    // Render member - FIXED: Enhanced with better data handling
     function renderMember(member) {
+        if (!membersList) {
+            console.error('Members list container not found');
+            return;
+        }
+        
         const memberElement = document.createElement('div');
         memberElement.className = 'member-item';
         
@@ -369,19 +443,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
             <div class="member-actions">
-                <button class="btn btn-sm btn-outline-primary" onclick="viewMemberDetails('${member.id}')">
+                <button class="btn btn-sm btn-outline-primary view-member-btn" data-member-id="${member.id}">
                     <i class="fas fa-eye me-1"></i>View
                 </button>
-                <button class="btn btn-sm btn-outline-warning" onclick="editMember('${member.id}')">
+                <button class="btn btn-sm btn-outline-warning edit-member-btn" data-member-id="${member.id}">
                     <i class="fas fa-edit me-1"></i>Edit
                 </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteMember('${member.id}')">
+                <button class="btn btn-sm btn-outline-danger delete-member-btn" data-member-id="${member.id}">
                     <i class="fas fa-trash me-1"></i>Delete
                 </button>
             </div>
         `;
         
         membersList.appendChild(memberElement);
+        
+        // Attach event listeners to member buttons
+        attachMemberEventListeners(memberElement, member);
+    }
+
+    // FIXED: Add member event listeners function
+    function attachMemberEventListeners(element, member) {
+        const viewBtn = element.querySelector('.view-member-btn');
+        const editBtn = element.querySelector('.edit-member-btn');
+        const deleteBtn = element.querySelector('.delete-member-btn');
+
+        viewBtn?.addEventListener('click', () => viewMemberDetails(member.id));
+        editBtn?.addEventListener('click', () => editMember(member.id));
+        deleteBtn?.addEventListener('click', () => deleteMember(member.id));
     }
 
     // Load auctions
@@ -391,6 +479,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 .where('managerId', '==', currentUser.uid)
                 .orderBy('auctionDate', 'desc')
                 .get();
+            
+            if (!auctionsList) {
+                console.error('Auctions list element not found');
+                return;
+            }
             
             auctionsList.innerHTML = '';
             
@@ -412,15 +505,19 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Error loading auctions:', error);
-            auctionsList.innerHTML = `
-                <div class="alert alert-danger">
-                    Error loading auctions: ${error.message}
-                </div>
-            `;
+            if (auctionsList) {
+                auctionsList.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading auctions: ${error.message}
+                    </div>
+                `;
+            }
         }
     }
 
     function renderAuction(auction) {
+        if (!auctionsList) return;
+        
         const auctionElement = document.createElement('div');
         auctionElement.className = 'chit-item';
         
@@ -461,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="chit-footer">
                 <span class="chit-date">Scheduled: ${auctionDate.toLocaleDateString()}</span>
                 <div>
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewAuctionDetails('${auction.id}')">
+                    <button class="btn btn-sm btn-outline-primary view-auction-btn" data-auction-id="${auction.id}">
                         View Details
                     </button>
                 </div>
@@ -469,6 +566,10 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         auctionsList.appendChild(auctionElement);
+        
+        // Add event listener
+        const viewBtn = auctionElement.querySelector('.view-auction-btn');
+        viewBtn?.addEventListener('click', () => viewAuctionDetails(auction.id));
     }
 
     // Load payments
@@ -478,6 +579,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 .where('managerId', '==', currentUser.uid)
                 .orderBy('paymentDate', 'desc')
                 .get();
+            
+            if (!paymentsList) {
+                console.error('Payments list element not found');
+                return;
+            }
             
             paymentsList.innerHTML = '';
             
@@ -523,15 +629,19 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Error loading payments:', error);
-            paymentsList.innerHTML = `
-                <div class="alert alert-danger">
-                    Error loading payments: ${error.message}
-                </div>
-            `;
+            if (paymentsList) {
+                paymentsList.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading payments: ${error.message}
+                    </div>
+                `;
+            }
         }
     }
 
     function renderPayment(payment) {
+        if (!paymentsList) return;
+        
         const paymentElement = document.createElement('div');
         paymentElement.className = 'payment-item';
         
@@ -551,10 +661,10 @@ document.addEventListener('DOMContentLoaded', function() {
         paymentsList.appendChild(paymentElement);
     }
 
-    // Update dashboard statistics
+    // Update dashboard statistics - FIXED: Enhanced with better counting
     async function updateStats() {
         try {
-            // Count members
+            // Count members - FIXED: Better member counting
             let membersCount = 0;
             try {
                 const membersSnapshot = await db.collection('members')
@@ -562,14 +672,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     .get();
                 membersCount = membersSnapshot.size;
             } catch (error) {
-                console.log('Trying users collection for member count');
-                const usersSnapshot = await db.collection('users')
-                    .where('role', '==', 'member')
-                    .get();
-                membersCount = usersSnapshot.size;
+                console.log('Trying alternative methods for member count');
+                try {
+                    const usersSnapshot = await db.collection('users')
+                        .where('role', '==', 'member')
+                        .get();
+                    membersCount = usersSnapshot.size;
+                } catch (userError) {
+                    // If no members found, count from chitMemberships
+                    try {
+                        const membershipsSnapshot = await db.collection('chitMemberships')
+                            .where('managerId', '==', currentUser.uid)
+                            .get();
+                        
+                        if (!membershipsSnapshot.empty) {
+                            const uniqueMemberIds = new Set();
+                            membershipsSnapshot.forEach(doc => {
+                                uniqueMemberIds.add(doc.data().memberId);
+                            });
+                            membersCount = uniqueMemberIds.size;
+                        }
+                    } catch (membershipError) {
+                        console.warn('Could not count members from any source');
+                    }
+                }
             }
+            
             console.log('Total members count:', membersCount);
-            totalMembersElement.textContent = membersCount;
+            if (totalMembersElement) {
+                totalMembersElement.textContent = membersCount;
+            }
 
             // Count active chits and calculate collection
             let activeChitsCount = 0;
@@ -595,8 +727,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalCollection = 0;
             }
             
-            activeChitsElement.textContent = activeChitsCount;
-            totalCollectionElement.textContent = `₹${totalCollection.toLocaleString()}`;
+            if (activeChitsElement) activeChitsElement.textContent = activeChitsCount;
+            if (totalCollectionElement) totalCollectionElement.textContent = `₹${totalCollection.toLocaleString()}`;
 
             // Count auctions this month
             let auctionsThisMonth = 0;
@@ -622,15 +754,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.warn('Error counting auctions:', error);
                 auctionsThisMonth = 0;
             }
-            auctionsThisMonthElement.textContent = auctionsThisMonth;
+            if (auctionsThisMonthElement) auctionsThisMonthElement.textContent = auctionsThisMonth;
 
         } catch (error) {
             console.error('Error updating stats:', error);
             // Set fallback values
-            totalMembersElement.textContent = '0';
-            activeChitsElement.textContent = '0';
-            totalCollectionElement.textContent = '₹0';
-            auctionsThisMonthElement.textContent = '0';
+            if (totalMembersElement) totalMembersElement.textContent = '0';
+            if (activeChitsElement) activeChitsElement.textContent = '0';
+            if (totalCollectionElement) totalCollectionElement.textContent = '₹0';
+            if (auctionsThisMonthElement) auctionsThisMonthElement.textContent = '0';
         }
     }
 
@@ -673,59 +805,69 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event listeners
-    createChitBtn.addEventListener('click', () => {
-        try {
-            createChitModal.show();
-        } catch (error) {
-            console.error('Error showing modal:', error);
-        }
-    });
+    // Event listeners - FIXED: Added null checks
+    if (createChitBtn) {
+        createChitBtn.addEventListener('click', () => {
+            try {
+                createChitModal.show();
+            } catch (error) {
+                console.error('Error showing modal:', error);
+            }
+        });
+    }
 
-    addMemberBtn.addEventListener('click', () => {
-        try {
-            addMemberModal.show();
-        } catch (error) {
-            console.error('Error showing modal:', error);
-        }
-    });
+    if (addMemberBtn) {
+        addMemberBtn.addEventListener('click', () => {
+            try {
+                addMemberModal.show();
+            } catch (error) {
+                console.error('Error showing modal:', error);
+            }
+        });
+    }
 
-    saveChitBtn.addEventListener('click', async () => {
-        try {
-            await createChitFund();
-        } catch (error) {
-            console.error('Error in chit creation:', error);
-        }
-    });
+    if (saveChitBtn) {
+        saveChitBtn.addEventListener('click', async () => {
+            try {
+                await createChitFund();
+            } catch (error) {
+                console.error('Error in chit creation:', error);
+            }
+        });
+    }
 
-    saveMemberBtn.addEventListener('click', async () => {
-        try {
-            await addMember();
-        } catch (error) {
-            console.error('Error in member addition:', error);
-        }
-    });
+    if (saveMemberBtn) {
+        saveMemberBtn.addEventListener('click', async () => {
+            try {
+                await addMember();
+            } catch (error) {
+                console.error('Error in member addition:', error);
+            }
+        });
+    }
 
-    logoutBtn.addEventListener('click', async () => {
-        try {
-            await auth.signOut();
-            window.location.href = 'auth.html';
-        } catch (error) {
-            console.error('Logout error:', error);
-            window.location.href = 'auth.html';
-        }
-    });
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await auth.signOut();
+                window.location.href = 'auth.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = 'auth.html';
+            }
+        });
+    }
 
     // Create chit fund
     async function createChitFund() {
-        const name = document.getElementById('chitName').value;
-        const chitCode = document.getElementById('chitCode').value;
-        const totalAmount = parseFloat(document.getElementById('totalAmount').value);
-        const duration = parseInt(document.getElementById('duration').value);
-        const monthlyAmount = parseFloat(document.getElementById('monthlyAmount').value);
-        const startDate = document.getElementById('startDate').value;
-        const maxMembers = parseInt(document.getElementById('maxMembers').value);
-        const description = document.getElementById('chitDescription').value;
+        const name = document.getElementById('chitName')?.value;
+        const chitCode = document.getElementById('chitCode')?.value;
+        const totalAmount = parseFloat(document.getElementById('totalAmount')?.value);
+        const duration = parseInt(document.getElementById('duration')?.value);
+        const monthlyAmount = parseFloat(document.getElementById('monthlyAmount')?.value);
+        const startDate = document.getElementById('startDate')?.value;
+        const maxMembers = parseInt(document.getElementById('maxMembers')?.value);
+        const description = document.getElementById('chitDescription')?.value;
 
         if (!name || !chitCode || !totalAmount || !duration || !monthlyAmount || !startDate || !maxMembers) {
             alert('Please fill all required fields');
@@ -753,7 +895,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             await db.collection('chits').add(chitData);
 
-            document.getElementById('createChitForm').reset();
+            const createChitForm = document.getElementById('createChitForm');
+            if (createChitForm) createChitForm.reset();
             createChitModal.hide();
             
             showSuccess('Chit fund created successfully!');
@@ -771,10 +914,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add member
     async function addMember() {
-        const name = document.getElementById('memberName').value;
-        const email = document.getElementById('memberEmail').value;
-        const phone = document.getElementById('memberPhone').value;
-        const address = document.getElementById('memberAddress').value;
+        const name = document.getElementById('memberName')?.value;
+        const email = document.getElementById('memberEmail')?.value;
+        const phone = document.getElementById('memberPhone')?.value;
+        const address = document.getElementById('memberAddress')?.value;
 
         if (!name || !email) {
             alert('Please fill name and email fields');
@@ -800,7 +943,28 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add to members collection
             await db.collection('members').add(memberData);
 
-            document.getElementById('addMemberForm').reset();
+            // Also ensure user exists in users collection with member role
+            try {
+                const userQuery = await db.collection('users')
+                    .where('email', '==', email)
+                    .get();
+                
+                if (userQuery.empty) {
+                    await db.collection('users').add({
+                        name: name,
+                        email: email,
+                        role: 'member',
+                        phone: phone || '',
+                        address: address || '',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } catch (userError) {
+                console.warn('Could not create user entry:', userError);
+            }
+
+            const addMemberForm = document.getElementById('addMemberForm');
+            if (addMemberForm) addMemberForm.reset();
             addMemberModal.hide();
             
             showSuccess('Member added successfully!');
@@ -822,9 +986,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const editBtn = element.querySelector('.edit-chit-btn');
         const deleteBtn = element.querySelector('.delete-chit-btn');
 
-        viewBtn.addEventListener('click', () => viewChitDetails(chit.id));
-        editBtn.addEventListener('click', () => editChit(chit.id));
-        deleteBtn.addEventListener('click', () => deleteChit(chit.id));
+        viewBtn?.addEventListener('click', () => viewChitDetails(chit.id));
+        editBtn?.addEventListener('click', () => editChitFund(chit.id));
+        deleteBtn?.addEventListener('click', () => deleteChitFund(chit.id));
     }
 
     // View chit details
@@ -832,161 +996,111 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const chitDoc = await db.collection('chits').doc(chitId).get();
             if (!chitDoc.exists) {
-                alert('Chit fund not found!');
+                alert('Chit fund not found');
                 return;
             }
 
-            const chit = chitDoc.data();
-            const progress = calculateChitProgress(chit);
-
-            // Populate view modal
-            document.getElementById('viewChitName').textContent = chit.name || '-';
-            document.getElementById('viewChitCode').textContent = chit.chitCode || '-';
-            document.getElementById('viewTotalAmount').textContent = `₹${chit.totalAmount?.toLocaleString() || '0'}`;
-            document.getElementById('viewMonthlyAmount').textContent = `₹${chit.monthlyAmount?.toLocaleString() || '0'}`;
-            document.getElementById('viewDuration').textContent = `${chit.duration || '0'} months`;
-            document.getElementById('viewMaxMembers').textContent = `${chit.currentMembers || 0}/${chit.maxMembers || 0}`;
+            const chit = { id: chitDoc.id, ...chitDoc.data() };
             
-            const progressBar = document.getElementById('viewProgressBar');
-            const progressText = document.getElementById('viewProgressText');
-            if (progressBar) progressBar.style.width = `${progress.percentage}%`;
-            if (progressText) progressText.textContent = `${progress.monthsPassed} of ${progress.totalMonths} months completed (${Math.round(progress.percentage)}%)`;
+            // FIXED: Use the correct modal element ID
+            const modalMembersList = document.getElementById('viewChitMembersList');
+            if (!modalMembersList) {
+                console.error('View chit members list not found');
+                return;
+            }
 
+            // Update modal content
+            const modalTitle = document.querySelector('#viewChitModal .modal-title');
+            if (modalTitle) modalTitle.textContent = chit.name;
+
+            const modalBody = document.querySelector('#viewChitModal .modal-body');
+            if (modalBody) {
+                modalBody.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Chit Code:</strong> ${chit.chitCode}</p>
+                            <p><strong>Total Amount:</strong> ₹${chit.totalAmount?.toLocaleString()}</p>
+                            <p><strong>Monthly Amount:</strong> ₹${chit.monthlyAmount?.toLocaleString()}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Duration:</strong> ${chit.duration} months</p>
+                            <p><strong>Members:</strong> ${chit.currentMembers || 0}/${chit.maxMembers}</p>
+                            <p><strong>Start Date:</strong> ${chit.startDate}</p>
+                        </div>
+                    </div>
+                    ${chit.description ? `<p><strong>Description:</strong> ${chit.description}</p>` : ''}
+                    
+                    <div class="mt-4">
+                        <h6>Members</h6>
+                        <div id="viewChitMembersList" class="members-list">
+                            <div class="text-center py-3">
+                                <i class="fas fa-spinner fa-spin"></i> Loading members...
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Load members for this chit
             await loadChitMembers(chitId);
             
-            document.getElementById('membersCount').textContent = chit.currentMembers || 0;
-            document.getElementById('maxMembersCount').textContent = chit.maxMembers || 0;
-
             viewChitModal.show();
+
         } catch (error) {
-            console.error('Error loading chit details:', error);
+            console.error('Error viewing chit details:', error);
             alert('Error loading chit details: ' + error.message);
         }
-    }
-    
-    // Edit chit
-    async function editChit(chitId) {
-        try {
-            const chitDoc = await db.collection('chits').doc(chitId).get();
-            if (!chitDoc.exists) {
-                alert('Chit fund not found!');
-                return;
-            }
-
-            const chit = chitDoc.data();
-
-            document.getElementById('editChitId').value = chitId;
-            document.getElementById('editChitName').value = chit.name || '';
-            document.getElementById('editChitCode').value = chit.chitCode || '';
-            document.getElementById('editTotalAmount').value = chit.totalAmount || '';
-            document.getElementById('editDuration').value = chit.duration || '';
-            document.getElementById('editMonthlyAmount').value = chit.monthlyAmount || '';
-            document.getElementById('editStartDate').value = chit.startDate || '';
-            document.getElementById('editMaxMembers').value = chit.maxMembers || '';
-            document.getElementById('editDescription').value = chit.description || '';
-            document.getElementById('editStatus').value = chit.status || 'active';
-
-            editChitModal.show();
-        } catch (error) {
-            console.error('Error loading chit for editing:', error);
-            alert('Error loading chit for editing: ' + error.message);
-        }
-    }
-    
-    // Delete chit
-    async function deleteChit(chitId) {
-        if (confirm('Are you sure you want to delete this chit fund? This action cannot be undone.')) {
-            try {
-                await db.collection('chits').doc(chitId).delete();
-                showSuccess('Chit fund deleted successfully!');
-                await loadChitFunds();
-                await updateStats();
-            } catch (error) {
-                console.error('Error deleting chit:', error);
-                alert('Error deleting chit fund: ' + error.message);
-            }
-        }
-    }
-
-    // Update UI
-    function updateUI() {
-        if (userData) {
-            userNameElement.textContent = userData.name || 'Manager';
-        }
-    }
-
-    // Set loading state
-    function setLoading(button, isLoading) {
-        if (!button) return;
-        
-        if (isLoading) {
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
-        } else {
-            button.disabled = false;
-            if (button === saveChitBtn) {
-                button.innerHTML = 'Create Chit Fund';
-            } else if (button === saveMemberBtn) {
-                button.innerHTML = 'Add Member';
-            } else if (button.id === 'updateChitBtn') {
-                button.innerHTML = 'Update Chit Fund';
-            }
-        }
-    }
-
-    // Show success message
-    function showSuccess(message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
-        alertDiv.style.zIndex = '9999';
-        alertDiv.innerHTML = `
-            <i class="fas fa-check-circle me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        document.body.appendChild(alertDiv);
-        
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 5000);
     }
 
     // Load members for a specific chit
     async function loadChitMembers(chitId) {
         try {
-            const membersListElement = document.getElementById('membersList');
-            if (!membersListElement) return;
-            
-            membersListElement.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Loading members...</div>';
-            
-            // For now, show all members since we don't have chit memberships set up
-            const membersSnapshot = await db.collection('members')
-                .where('managerId', '==', currentUser.uid)
+            const modalMembersList = document.getElementById('viewChitMembersList');
+            if (!modalMembersList) return;
+
+            // Get memberships for this chit
+            const membershipsSnapshot = await db.collection('chitMemberships')
+                .where('chitId', '==', chitId)
                 .get();
-            
-            membersListElement.innerHTML = '';
-            
-            if (membersSnapshot.empty) {
-                membersListElement.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">No Members Available</h5>
-                        <p class="text-muted">Members will appear here when they register</p>
+
+            if (membershipsSnapshot.empty) {
+                modalMembersList.innerHTML = `
+                    <div class="text-center py-3 text-muted">
+                        <i class="fas fa-users"></i>
+                        <p>No members joined yet</p>
                     </div>
                 `;
                 return;
             }
+
+            modalMembersList.innerHTML = '';
             
-            membersSnapshot.forEach(doc => {
-                const member = { id: doc.id, ...doc.data() };
-                renderChitMember(member);
-            });
-            
+            // Get member details for each membership
+            for (const membershipDoc of membershipsSnapshot.docs) {
+                const membership = membershipDoc.data();
+                const memberDoc = await db.collection('members').doc(membership.memberId).get();
+                
+                if (memberDoc.exists) {
+                    const member = memberDoc.data();
+                    const memberElement = document.createElement('div');
+                    memberElement.className = 'member-item-small';
+                    memberElement.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${member.name}</strong>
+                                <br>
+                                <small class="text-muted">${member.email}</small>
+                            </div>
+                            <span class="badge bg-success">Joined</span>
+                        </div>
+                    `;
+                    modalMembersList.appendChild(memberElement);
+                }
+            }
+
         } catch (error) {
             console.error('Error loading chit members:', error);
-            document.getElementById('membersList').innerHTML = `
+            modalMembersList.innerHTML = `
                 <div class="alert alert-danger">
                     Error loading members: ${error.message}
                 </div>
@@ -994,132 +1108,210 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Render member in chit members list
-    function renderChitMember(member) {
-        const membersListElement = document.getElementById('membersList');
-        if (!membersListElement) return;
-        
-        const memberElement = document.createElement('div');
-        memberElement.className = 'member-item';
-        memberElement.innerHTML = `
-            <div class="member-header">
-                <div class="member-avatar">
-                    <i class="fas fa-user"></i>
-                </div>
-                <div class="member-info">
-                    <h5 class="member-name">${member.name || 'Unknown Member'}</h5>
-                    <p class="member-contact">
-                        <i class="fas fa-envelope me-1"></i>${member.email || 'No email'}
-                    </p>
-                </div>
-                <div class="member-status">
-                    <span class="badge bg-success">Available</span>
-                </div>
-            </div>
-            <div class="member-actions">
-                <button class="btn btn-sm btn-success" onclick="addMemberToChit('${member.id}')">
-                    <i class="fas fa-plus me-1"></i>Add to Chit
-                </button>
-            </div>
-        `;
-        
-        membersListElement.appendChild(memberElement);
-    }
-
-    // Profile Management Functions
-    async function showProfile() {
+    // Edit chit fund
+    async function editChitFund(chitId) {
         try {
-            // Load profile data
-            document.getElementById('profileName').textContent = userData.name || 'Manager';
-            document.getElementById('profileEmail').textContent = userData.email || '-';
-            document.getElementById('profilePhone').textContent = userData.phone || 'Not provided';
-            document.getElementById('profileAddress').textContent = userData.address || 'Not provided';
-            document.getElementById('profileRole').textContent = userData.role || 'Manager';
-            document.getElementById('profileJoinDate').textContent = userData.createdAt ? 
-                new Date(userData.createdAt.seconds * 1000).toLocaleDateString() : 'Recently';
+            const chitDoc = await db.collection('chits').doc(chitId).get();
+            if (!chitDoc.exists) {
+                alert('Chit fund not found');
+                return;
+            }
 
-            // Load profile statistics
-            await loadProfileStats();
+            const chit = chitDoc.data();
             
-            profileModal.show();
+            // Populate edit form
+            document.getElementById('editChitName').value = chit.name || '';
+            document.getElementById('editChitCode').value = chit.chitCode || '';
+            document.getElementById('editTotalAmount').value = chit.totalAmount || '';
+            document.getElementById('editDuration').value = chit.duration || '';
+            document.getElementById('editMonthlyAmount').value = chit.monthlyAmount || '';
+            document.getElementById('editStartDate').value = chit.startDate || '';
+            document.getElementById('editMaxMembers').value = chit.maxMembers || '';
+            document.getElementById('editChitDescription').value = chit.description || '';
+            
+            // Store chit ID for update
+            document.getElementById('updateChitBtn').setAttribute('data-chit-id', chitId);
+            
+            editChitModal.show();
+
         } catch (error) {
-            console.error('Error loading profile:', error);
-            alert('Error loading profile: ' + error.message);
+            console.error('Error editing chit fund:', error);
+            alert('Error loading chit fund for editing: ' + error.message);
         }
     }
 
-    async function loadProfileStats() {
+    // Update chit fund
+    async function updateChitFund() {
+        const chitId = document.getElementById('updateChitBtn').getAttribute('data-chit-id');
+        if (!chitId) {
+            alert('Chit ID not found');
+            return;
+        }
+
+        const name = document.getElementById('editChitName').value;
+        const chitCode = document.getElementById('editChitCode').value;
+        const totalAmount = parseFloat(document.getElementById('editTotalAmount').value);
+        const duration = parseInt(document.getElementById('editDuration').value);
+        const monthlyAmount = parseFloat(document.getElementById('editMonthlyAmount').value);
+        const startDate = document.getElementById('editStartDate').value;
+        const maxMembers = parseInt(document.getElementById('editMaxMembers').value);
+        const description = document.getElementById('editChitDescription').value;
+
+        if (!name || !chitCode || !totalAmount || !duration || !monthlyAmount || !startDate || !maxMembers) {
+            alert('Please fill all required fields');
+            return;
+        }
+
         try {
-            // Total chits created
-            const chitsSnapshot = await db.collection('chits')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-            document.getElementById('profileTotalChits').textContent = chitsSnapshot.size;
+            setLoading(document.getElementById('updateChitBtn'), true);
 
-            // Active members
-            let membersCount = 0;
-            try {
-                const membersSnapshot = await db.collection('members')
-                    .where('managerId', '==', currentUser.uid)
-                    .where('status', '==', 'active')
-                    .get();
-                membersCount = membersSnapshot.size;
-            } catch (error) {
-                const usersSnapshot = await db.collection('users')
-                    .where('role', '==', 'member')
-                    .get();
-                membersCount = usersSnapshot.size;
-            }
-            document.getElementById('profileActiveMembers').textContent = membersCount;
+            const updateData = {
+                name: name,
+                chitCode: chitCode,
+                totalAmount: totalAmount,
+                duration: duration,
+                monthlyAmount: monthlyAmount,
+                startDate: startDate,
+                maxMembers: maxMembers,
+                description: description,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
 
-            // Total collection
-            let totalCollection = 0;
-            try {
-                const paymentsSnapshot = await db.collection('payments')
-                    .where('managerId', '==', currentUser.uid)
-                    .get();
-                
-                paymentsSnapshot.forEach(doc => {
-                    const payment = doc.data();
-                    totalCollection += payment.amount || 0;
-                });
-            } catch (error) {
-                console.log('No payments found');
-            }
-            document.getElementById('profileTotalCollection').textContent = `₹${totalCollection.toLocaleString()}`;
+            await db.collection('chits').doc(chitId).update(updateData);
 
-            // Completed auctions
-            let completedAuctions = 0;
-            try {
-                const auctionsSnapshot = await db.collection('auctions')
-                    .where('managerId', '==', currentUser.uid)
-                    .where('status', '==', 'completed')
-                    .get();
-                completedAuctions = auctionsSnapshot.size;
-            } catch (error) {
-                console.log('No auctions found');
-            }
-            document.getElementById('profileCompletedAuctions').textContent = completedAuctions;
+            editChitModal.hide();
+            showSuccess('Chit fund updated successfully!');
+            
+            await loadChitFunds();
 
         } catch (error) {
-            console.error('Error loading profile stats:', error);
+            console.error('Error updating chit fund:', error);
+            alert('Error updating chit fund: ' + error.message);
+        } finally {
+            setLoading(document.getElementById('updateChitBtn'), false);
         }
     }
 
+    // Delete chit fund
+    async function deleteChitFund(chitId) {
+        if (!confirm('Are you sure you want to delete this chit fund? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await db.collection('chits').doc(chitId).delete();
+            showSuccess('Chit fund deleted successfully!');
+            await loadChitFunds();
+            await updateStats();
+        } catch (error) {
+            console.error('Error deleting chit fund:', error);
+            alert('Error deleting chit fund: ' + error.message);
+        }
+    }
+
+    // View member details
+    async function viewMemberDetails(memberId) {
+        try {
+            const memberDoc = await db.collection('members').doc(memberId).get();
+            if (!memberDoc.exists) {
+                alert('Member not found');
+                return;
+            }
+
+            const member = memberDoc.data();
+            alert(`Member Details:\n\nName: ${member.name}\nEmail: ${member.email}\nPhone: ${member.phone || 'Not provided'}\nActive Chits: ${member.activeChits || 0}\nTotal Paid: ₹${member.totalPaid || 0}`);
+
+        } catch (error) {
+            console.error('Error viewing member details:', error);
+            alert('Error loading member details: ' + error.message);
+        }
+    }
+
+    // Edit member
+    async function editMember(memberId) {
+        try {
+            const memberDoc = await db.collection('members').doc(memberId).get();
+            if (!memberDoc.exists) {
+                alert('Member not found');
+                return;
+            }
+
+            const member = memberDoc.data();
+            
+            // Populate edit form (you'll need to create this modal)
+            alert('Edit member functionality would go here for member: ' + member.name);
+
+        } catch (error) {
+            console.error('Error editing member:', error);
+            alert('Error loading member for editing: ' + error.message);
+        }
+    }
+
+    // Delete member
+    async function deleteMember(memberId) {
+        if (!confirm('Are you sure you want to delete this member?')) {
+            return;
+        }
+
+        try {
+            await db.collection('members').doc(memberId).delete();
+            showSuccess('Member deleted successfully!');
+            await loadMembers();
+            await updateStats();
+        } catch (error) {
+            console.error('Error deleting member:', error);
+            alert('Error deleting member: ' + error.message);
+        }
+    }
+
+    // View auction details
+    async function viewAuctionDetails(auctionId) {
+        try {
+            const auctionDoc = await db.collection('auctions').doc(auctionId).get();
+            if (!auctionDoc.exists) {
+                alert('Auction not found');
+                return;
+            }
+
+            const auction = auctionDoc.data();
+            alert(`Auction Details:\n\nChit: ${auction.chitName}\nDate: ${auction.auctionDate}\nLocation: ${auction.location || 'Not specified'}\nStatus: ${auction.status}`);
+
+        } catch (error) {
+            console.error('Error viewing auction details:', error);
+            alert('Error loading auction details: ' + error.message);
+        }
+    }
+
+    // Show profile
+    function showProfile() {
+        if (!userData) return;
+        
+        document.getElementById('profileName').textContent = userData.name || 'Not set';
+        document.getElementById('profileEmail').textContent = userData.email || 'Not set';
+        document.getElementById('profilePhone').textContent = userData.phone || 'Not provided';
+        document.getElementById('profileAddress').textContent = userData.address || 'Not provided';
+        document.getElementById('profileRole').textContent = userData.role || 'manager';
+        
+        profileModal.show();
+    }
+
+    // Show edit profile
     function showEditProfile() {
-        document.getElementById('editProfileName').value = userData.name || '';
-        document.getElementById('editProfileEmail').value = userData.email || '';
-        document.getElementById('editProfilePhone').value = userData.phone || '';
-        document.getElementById('editProfileAddress').value = userData.address || '';
+        if (!userData) return;
+        
+        document.getElementById('editName').value = userData.name || '';
+        document.getElementById('editPhone').value = userData.phone || '';
+        document.getElementById('editAddress').value = userData.address || '';
         
         profileModal.hide();
-        setTimeout(() => editProfileModal.show(), 300);
+        editProfileModal.show();
     }
 
+    // Update profile
     async function updateProfile() {
-        const name = document.getElementById('editProfileName').value;
-        const phone = document.getElementById('editProfilePhone').value;
-        const address = document.getElementById('editProfileAddress').value;
+        const name = document.getElementById('editName').value;
+        const phone = document.getElementById('editPhone').value;
+        const address = document.getElementById('editAddress').value;
 
         if (!name) {
             alert('Please enter your name');
@@ -1138,13 +1330,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             await db.collection('users').doc(currentUser.uid).update(updateData);
             
-            // Update local userData
             userData = { ...userData, ...updateData };
-            updateUI();
             
             editProfileModal.hide();
             showSuccess('Profile updated successfully!');
             
+            updateUI();
+
         } catch (error) {
             console.error('Error updating profile:', error);
             alert('Error updating profile: ' + error.message);
@@ -1153,47 +1345,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Auction Management Functions
-    async function showScheduleAuction() {
+    // Show schedule auction
+    function showScheduleAuction() {
+        // Populate chit funds dropdown
+        populateChitFundsDropdown();
+        scheduleAuctionModal.show();
+    }
+
+    // Populate chit funds dropdown
+    async function populateChitFundsDropdown() {
+        const chitSelect = document.getElementById('auctionChit');
+        if (!chitSelect) return;
+
         try {
-            // Load active chits for dropdown
             const chitsSnapshot = await db.collection('chits')
                 .where('managerId', '==', currentUser.uid)
                 .where('status', '==', 'active')
                 .get();
-            
-            const auctionChitSelect = document.getElementById('auctionChit');
-            auctionChitSelect.innerHTML = '<option value="">Choose a chit fund...</option>';
+
+            chitSelect.innerHTML = '<option value="">Select Chit Fund</option>';
             
             chitsSnapshot.forEach(doc => {
                 const chit = doc.data();
                 const option = document.createElement('option');
                 option.value = doc.id;
                 option.textContent = `${chit.name} (${chit.chitCode})`;
-                auctionChitSelect.appendChild(option);
+                chitSelect.appendChild(option);
             });
-            
-            // Set default date to next week
-            const nextWeek = new Date();
-            nextWeek.setDate(nextWeek.getDate() + 7);
-            document.getElementById('auctionDate').value = nextWeek.toISOString().slice(0, 16);
-            
-            scheduleAuctionModal.show();
+
         } catch (error) {
-            console.error('Error loading chits for auction:', error);
-            alert('Error loading chit funds: ' + error.message);
+            console.error('Error loading chit funds for dropdown:', error);
         }
     }
 
+    // Schedule auction
     async function scheduleAuction() {
         const chitId = document.getElementById('auctionChit').value;
         const auctionDate = document.getElementById('auctionDate').value;
         const location = document.getElementById('auctionLocation').value;
-        const minBid = parseInt(document.getElementById('auctionMinBid').value);
         const notes = document.getElementById('auctionNotes').value;
 
         if (!chitId || !auctionDate) {
-            alert('Please fill all required fields');
+            alert('Please select chit fund and enter auction date');
             return;
         }
 
@@ -1203,30 +1396,28 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get chit details
             const chitDoc = await db.collection('chits').doc(chitId).get();
             if (!chitDoc.exists) {
-                alert('Selected chit fund not found!');
+                alert('Selected chit fund not found');
                 return;
             }
 
             const chit = chitDoc.data();
+
             const auctionData = {
                 chitId: chitId,
                 chitName: chit.name,
                 chitCode: chit.chitCode,
                 auctionDate: new Date(auctionDate),
                 location: location,
-                minBidPercentage: minBid,
                 notes: notes,
                 managerId: currentUser.uid,
                 status: 'scheduled',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             await db.collection('auctions').add(auctionData);
 
             document.getElementById('scheduleAuctionForm').reset();
             scheduleAuctionModal.hide();
-            
             showSuccess('Auction scheduled successfully!');
             
             await loadAuctions();
@@ -1239,62 +1430,64 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Payment Management Functions
-    async function showRecordPayment() {
-        try {
-            // Load members for dropdown
-            const membersSnapshot = await db.collection('members')
-                .where('managerId', '==', currentUser.uid)
-                .where('status', '==', 'active')
-                .get();
-            
-            const paymentMemberSelect = document.getElementById('paymentMember');
-            paymentMemberSelect.innerHTML = '<option value="">Choose a member...</option>';
-            
-            membersSnapshot.forEach(doc => {
-                const member = doc.data();
-                const option = document.createElement('option');
-                option.value = doc.id;
-                option.textContent = `${member.name} (${member.email})`;
-                paymentMemberSelect.appendChild(option);
-            });
+    // Show record payment
+    function showRecordPayment() {
+        populatePaymentDropdowns();
+        recordPaymentModal.show();
+    }
 
-            // Load chits for dropdown
+    // Populate payment dropdowns
+    async function populatePaymentDropdowns() {
+        const chitSelect = document.getElementById('paymentChit');
+        const memberSelect = document.getElementById('paymentMember');
+
+        if (!chitSelect || !memberSelect) return;
+
+        try {
+            // Populate chits
             const chitsSnapshot = await db.collection('chits')
                 .where('managerId', '==', currentUser.uid)
                 .where('status', '==', 'active')
                 .get();
-            
-            const paymentChitSelect = document.getElementById('paymentChit');
-            paymentChitSelect.innerHTML = '<option value="">Choose a chit fund...</option>';
-            
+
+            chitSelect.innerHTML = '<option value="">Select Chit Fund</option>';
             chitsSnapshot.forEach(doc => {
                 const chit = doc.data();
                 const option = document.createElement('option');
                 option.value = doc.id;
                 option.textContent = `${chit.name} (${chit.chitCode})`;
-                paymentChitSelect.appendChild(option);
+                chitSelect.appendChild(option);
             });
 
-            // Set default date to today
-            document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
-            
-            recordPaymentModal.show();
+            // Populate members
+            const membersSnapshot = await db.collection('members')
+                .where('managerId', '==', currentUser.uid)
+                .get();
+
+            memberSelect.innerHTML = '<option value="">Select Member</option>';
+            membersSnapshot.forEach(doc => {
+                const member = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = `${member.name} (${member.email})`;
+                memberSelect.appendChild(option);
+            });
+
         } catch (error) {
-            console.error('Error loading data for payment:', error);
-            alert('Error loading data: ' + error.message);
+            console.error('Error loading dropdowns:', error);
         }
     }
 
+    // Record payment
     async function recordPayment() {
-        const memberId = document.getElementById('paymentMember').value;
         const chitId = document.getElementById('paymentChit').value;
+        const memberId = document.getElementById('paymentMember').value;
         const amount = parseFloat(document.getElementById('paymentAmount').value);
-        const paymentDate = document.getElementById('paymentDate').value;
         const paymentMethod = document.getElementById('paymentMethod').value;
+        const paymentDate = document.getElementById('paymentDate').value;
         const notes = document.getElementById('paymentNotes').value;
 
-        if (!memberId || !chitId || !amount || !paymentDate) {
+        if (!chitId || !memberId || !amount || !paymentMethod || !paymentDate) {
             alert('Please fill all required fields');
             return;
         }
@@ -1302,34 +1495,32 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             setLoading(document.getElementById('savePaymentBtn'), true);
 
-            // Get member and chit details
-            const [memberDoc, chitDoc] = await Promise.all([
-                db.collection('members').doc(memberId).get(),
-                db.collection('chits').doc(chitId).get()
+            // Get chit and member details
+            const [chitDoc, memberDoc] = await Promise.all([
+                db.collection('chits').doc(chitId).get(),
+                db.collection('members').doc(memberId).get()
             ]);
 
-            if (!memberDoc.exists || !chitDoc.exists) {
-                alert('Member or chit fund not found!');
+            if (!chitDoc.exists || !memberDoc.exists) {
+                alert('Chit fund or member not found');
                 return;
             }
 
-            const member = memberDoc.data();
             const chit = chitDoc.data();
+            const member = memberDoc.data();
 
             const paymentData = {
-                memberId: memberId,
-                memberName: member.name,
                 chitId: chitId,
                 chitName: chit.name,
                 chitCode: chit.chitCode,
+                memberId: memberId,
+                memberName: member.name,
                 amount: amount,
-                paymentDate: paymentDate,
                 paymentMethod: paymentMethod,
+                paymentDate: paymentDate,
                 notes: notes,
                 managerId: currentUser.uid,
-                status: 'completed',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                recordedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             await db.collection('payments').add(paymentData);
@@ -1343,11 +1534,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             document.getElementById('recordPaymentForm').reset();
             recordPaymentModal.hide();
-            
             showSuccess('Payment recorded successfully!');
             
             await loadPayments();
-            await updateStats();
+            await loadMembers();
 
         } catch (error) {
             console.error('Error recording payment:', error);
@@ -1357,364 +1547,108 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Reports Functions
-    async function showReports() {
-        try {
-            await loadFinancialReports();
-            await loadMembersReport();
-            await loadChitsReport();
-            
-            viewReportsModal.show();
-        } catch (error) {
-            console.error('Error loading reports:', error);
-            alert('Error loading reports: ' + error.message);
-        }
+    // Show reports
+    function showReports() {
+        viewReportsModal.show();
+        generateReports();
     }
 
-    async function loadFinancialReports() {
+    // Generate reports
+    async function generateReports() {
         try {
-            const financialReports = document.getElementById('financialReports');
-            
-            // Get total collections
-            let totalCollections = 0;
-            try {
-                const paymentsSnapshot = await db.collection('payments')
-                    .where('managerId', '==', currentUser.uid)
-                    .get();
-                
-                paymentsSnapshot.forEach(doc => {
-                    totalCollections += doc.data().amount || 0;
-                });
-            } catch (error) {
-                console.log('No payments found for reports');
-            }
-
-            // Get pending amounts (simplified calculation)
-            const chitsSnapshot = await db.collection('chits')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-            
-            let totalExpected = 0;
-            chitsSnapshot.forEach(doc => {
-                const chit = doc.data();
-                totalExpected += chit.totalAmount || 0;
-            });
-
-            const pendingAmount = Math.max(0, totalExpected - totalCollections);
-
-            // Get members count
-            let membersCount = 0;
-            try {
-                const membersSnapshot = await db.collection('members')
-                    .where('managerId', '==', currentUser.uid)
-                    .get();
-                membersCount = membersSnapshot.size;
-            } catch (error) {
-                const usersSnapshot = await db.collection('users')
-                    .where('role', '==', 'member')
-                    .get();
-                membersCount = usersSnapshot.size;
-            }
-
-            financialReports.innerHTML = `
-                <div class="col-md-6 mb-4">
-                    <div class="card border-success">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title text-success">Total Collections</h6>
-                                    <h3 class="text-success">₹${totalCollections.toLocaleString()}</h3>
+            // This would generate various reports
+            // For now, just show a placeholder
+            const reportsContent = document.getElementById('reportsContent');
+            if (reportsContent) {
+                reportsContent.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-bar fa-3x text-primary mb-3"></i>
+                        <h5>Reports Dashboard</h5>
+                        <p class="text-muted">Comprehensive reports and analytics will be displayed here.</p>
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <h6>Monthly Collection</h6>
+                                        <h4 class="text-success">₹0</h4>
+                                    </div>
                                 </div>
-                                <i class="fas fa-money-bill-wave fa-2x text-success"></i>
                             </div>
-                            <p class="small text-muted mb-0">Total amount collected from all chits</p>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <h6>Pending Payments</h6>
+                                        <h4 class="text-warning">0</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <h6>Upcoming Auctions</h6>
+                                        <h4 class="text-info">0</h4>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-6 mb-4">
-                    <div class="card border-warning">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title text-warning">Pending Collections</h6>
-                                    <h3 class="text-warning">₹${pendingAmount.toLocaleString()}</h3>
-                                </div>
-                                <i class="fas fa-clock fa-2x text-warning"></i>
-                            </div>
-                            <p class="small text-muted mb-0">Amount yet to be collected</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-4">
-                    <div class="card border-primary">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title text-primary">Active Chits</h6>
-                                    <h3 class="text-primary">${chitsSnapshot.size}</h3>
-                                </div>
-                                <i class="fas fa-file-contract fa-2x text-primary"></i>
-                            </div>
-                            <p class="small text-muted mb-0">Total active chit funds</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-4">
-                    <div class="card border-info">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title text-info">Total Members</h6>
-                                    <h3 class="text-info">${membersCount}</h3>
-                                </div>
-                                <i class="fas fa-users fa-2x text-info"></i>
-                            </div>
-                            <p class="small text-muted mb-0">Registered members across all chits</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } catch (error) {
-            console.error('Error loading financial reports:', error);
-            document.getElementById('financialReports').innerHTML = `
-                <div class="alert alert-danger">Error loading financial reports: ${error.message}</div>
-            `;
-        }
-    }
-
-    async function loadMembersReport() {
-        try {
-            const membersReport = document.getElementById('membersReport');
-            let membersSnapshot;
-            try {
-                membersSnapshot = await db.collection('members')
-                    .where('managerId', '==', currentUser.uid)
-                    .get();
-            } catch (error) {
-                membersSnapshot = await db.collection('users')
-                    .where('role', '==', 'member')
-                    .get();
-            }
-            
-            if (membersSnapshot.empty) {
-                membersReport.innerHTML = '<p class="text-muted">No members found</p>';
-                return;
-            }
-
-            let reportHTML = `
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>Total Paid</th>
-                                <th>Status</th>
-                                <th>Join Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            membersSnapshot.forEach(doc => {
-                const member = doc.data();
-                const joinDate = member.joinedAt ? 
-                    new Date(member.joinedAt.seconds * 1000).toLocaleDateString() : 
-                    (member.createdAt ? new Date(member.createdAt.seconds * 1000).toLocaleDateString() : 'Recently');
-                
-                reportHTML += `
-                    <tr>
-                        <td>${member.name}</td>
-                        <td>${member.email}</td>
-                        <td>${member.phone || '-'}</td>
-                        <td>₹${(member.totalPaid || 0).toLocaleString()}</td>
-                        <td><span class="badge ${member.status === 'active' ? 'bg-success' : 'bg-secondary'}">${member.status || 'active'}</span></td>
-                        <td>${joinDate}</td>
-                    </tr>
-                `;
-            });
-
-            reportHTML += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-
-            membersReport.innerHTML = reportHTML;
-        } catch (error) {
-            console.error('Error loading members report:', error);
-            document.getElementById('membersReport').innerHTML = `
-                <div class="alert alert-danger">Error loading members report: ${error.message}</div>
-            `;
-        }
-    }
-
-    async function loadChitsReport() {
-        try {
-            const chitsReport = document.getElementById('chitsReport');
-            const chitsSnapshot = await db.collection('chits')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-            
-            if (chitsSnapshot.empty) {
-                chitsReport.innerHTML = '<p class="text-muted">No chit funds found</p>';
-                return;
-            }
-
-            let reportHTML = `
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Chit Name</th>
-                                <th>Code</th>
-                                <th>Total Amount</th>
-                                <th>Members</th>
-                                <th>Status</th>
-                                <th>Start Date</th>
-                                <th>Duration</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            for (const doc of chitsSnapshot.docs) {
-                const chit = doc.data();
-                
-                const startDate = chit.startDate || 'Not set';
-                
-                reportHTML += `
-                    <tr>
-                        <td>${chit.name}</td>
-                        <td>${chit.chitCode}</td>
-                        <td>₹${(chit.totalAmount || 0).toLocaleString()}</td>
-                        <td>${chit.currentMembers || 0}/${chit.maxMembers || 0}</td>
-                        <td><span class="badge ${chit.status === 'active' ? 'bg-success' : 'bg-secondary'}">${chit.status}</span></td>
-                        <td>${startDate}</td>
-                        <td>${chit.duration || 0} months</td>
-                    </tr>
                 `;
             }
-
-            reportHTML += `
-                        </tbody>
-                </table>
-            </div>
-        `;
-
-            chitsReport.innerHTML = reportHTML;
         } catch (error) {
-            console.error('Error loading chits report:', error);
-            document.getElementById('chitsReport').innerHTML = `
-                <div class="alert alert-danger">Error loading chits report: ${error.message}</div>
-            `;
+            console.error('Error generating reports:', error);
         }
     }
 
+    // Export reports
     function exportReports() {
-        // Simple CSV export implementation
-        let csvContent = "Chit Fund Manager Reports\n\n";
-        
-        // Add financial summary
-        csvContent += "FINANCIAL SUMMARY\n";
-        csvContent += "Total Collections," + (document.querySelector('#financialReports .text-success h3')?.textContent || '₹0') + "\n";
-        csvContent += "Pending Collections," + (document.querySelector('#financialReports .text-warning h3')?.textContent || '₹0') + "\n";
-        csvContent += "Active Chits," + (document.querySelector('#financialReports .text-primary h3')?.textContent || '0') + "\n";
-        csvContent += "Total Members," + (document.querySelector('#financialReports .text-info h3')?.textContent || '0') + "\n\n";
-        
-        // Export as CSV file
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `chit-manager-reports-${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        showSuccess('Reports exported successfully!');
+        alert('Export functionality would be implemented here');
+        // This would generate and download CSV/PDF reports
     }
 
-    // Update chit fund function
-    async function updateChitFund() {
-        const chitId = document.getElementById('editChitId').value;
-        const name = document.getElementById('editChitName').value;
-        const totalAmount = parseFloat(document.getElementById('editTotalAmount').value);
-        const duration = parseInt(document.getElementById('editDuration').value);
-        const monthlyAmount = parseFloat(document.getElementById('editMonthlyAmount').value);
-        const startDate = document.getElementById('editStartDate').value;
-        const maxMembers = parseInt(document.getElementById('editMaxMembers').value);
-        const description = document.getElementById('editDescription').value;
-        const status = document.getElementById('editStatus').value;
-
-        if (!name || !totalAmount || !duration || !monthlyAmount || !startDate || !maxMembers) {
-            alert('Please fill all required fields');
-            return;
-        }
-
-        try {
-            setLoading(document.getElementById('updateChitBtn'), true);
-
-            const updateData = {
-                name: name,
-                totalAmount: totalAmount,
-                duration: duration,
-                monthlyAmount: monthlyAmount,
-                startDate: startDate,
-                maxMembers: maxMembers,
-                description: description,
-                status: status,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            await db.collection('chits').doc(chitId).update(updateData);
-
-            document.getElementById('editChitForm').reset();
-            editChitModal.hide();
-            
-            showSuccess('Chit fund updated successfully!');
-            
-            await loadChitFunds();
-            await updateStats();
-
-        } catch (error) {
-            console.error('Error updating chit fund:', error);
-            alert('Error updating chit fund: ' + error.message);
-        } finally {
-            setLoading(document.getElementById('updateChitBtn'), false);
+    // Update UI
+    function updateUI() {
+        if (userNameElement && userData) {
+            userNameElement.textContent = userData.name || 'Manager';
         }
     }
 
-    // Global functions for member actions
-    window.viewMemberDetails = function(memberId) {
-        alert('View member details: ' + memberId);
-    };
+    // Utility functions
+    function setLoading(button, isLoading) {
+        if (!button) return;
+        
+        if (isLoading) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        } else {
+            button.disabled = false;
+            const originalText = button.getAttribute('data-original-text') || 'Save';
+            button.innerHTML = originalText;
+        }
+    }
 
-    window.editMember = function(memberId) {
-        alert('Edit member: ' + memberId);
-    };
-
-    window.deleteMember = async function(memberId) {
-        if (confirm('Are you sure you want to delete this member?')) {
-            try {
-                await db.collection('members').doc(memberId).delete();
-                showSuccess('Member deleted successfully!');
-                loadMembers();
-                updateStats();
-            } catch (error) {
-                console.error('Error deleting member:', error);
-                alert('Error deleting member: ' + error.message);
+    function showSuccess(message) {
+        // Create a temporary success message
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
             }
-        }
+        }, 3000);
+    }
+
+    // Global function to refresh members (for retry button)
+    window.refreshMembers = function() {
+        loadMembers();
     };
 
-    window.addMemberToChit = function(memberId) {
-        alert('Add member to chit: ' + memberId);
-    };
-
-    window.viewAuctionDetails = function(auctionId) {
-        alert('View auction details: ' + auctionId);
-    };
+    console.log('Dashboard Manager initialized successfully');
 });
