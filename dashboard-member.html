@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChitFund Pro | Member Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-hand-holding-usd me-2"></i>
+                ChitFund Pro
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user me-1"></i>
+                        <span id="userName">Member</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" id="joinChitBtn">Join Chit Fund</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Dashboard Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="dashboard-header">
+                    <h1><i class="fas fa-user me-2"></i>Member Dashboard</h1>
+                    <p>Track your chit fund investments and payments</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Member Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="myChitsCount">0</h3>
+                        <p>My Chit Funds</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalPaid">₹0</h3>
+                        <p>Total Paid</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="duePayments">0</h3>
+                        <p>Due Payments</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="auctionsWon">0</h3>
+                        <p>Auctions Won</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="memberTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="mychits-tab" data-bs-toggle="tab" data-bs-target="#mychits" type="button">
+                            <i class="fas fa-file-contract me-2"></i>My Chit Funds
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button">
+                            <i class="fas fa-rupee-sign me-2"></i>Payment History
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="auctions-tab" data-bs-toggle="tab" data-bs-target="#auctions" type="button">
+                            <i class="fas fa-gavel me-2"></i>My Auctions
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button">
+                            <i class="fas fa-user me-2"></i>My Profile
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="memberTabContent">
+                    <!-- My Chits Tab -->
+                    <div class="tab-pane fade show active" id="mychits" role="tabpanel">
+                        <div class="tab-header">
+                            <h3>My Chit Funds</h3>
+                            <button class="btn btn-primary" id="joinNewChitBtn">
+                                <i class="fas fa-plus me-2"></i>Join Chit Fund
+                            </button>
+                        </div>
+                        <div id="myChitsList" class="chit-list">
+                            <!-- Member's chit funds will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Payments Tab -->
+                    <div class="tab-pane fade" id="payments" role="tabpanel">
+                        <div class="tab-header">
+                            <h3>Payment History</h3>
+                            <div class="payment-summary">
+                                <div class="summary-card">
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    <span>Paid: <strong id="totalPaidAmount">₹0</strong></span>
+                                </div>
+                                <div class="summary-card">
+                                    <i class="fas fa-clock text-warning"></i>
+                                    <span>Pending: <strong id="totalPendingAmount">₹0</strong></span>
+                                </div>
+                                <div class="summary-card">
+                                    <i class="fas fa-times-circle text-danger"></i>
+                                    <span>Overdue: <strong id="totalOverdueAmount">₹0</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="paymentsHistory" class="payments-history">
+                            <!-- Payment history will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Auctions Tab -->
+                    <div class="tab-pane fade" id="auctions" role="tabpanel">
+                        <div class="tab-header">
+                            <h3>My Auction History</h3>
+                        </div>
+                        <div id="myAuctionsList" class="auctions-list">
+                            <!-- Member's auction history will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Profile Tab -->
+                    <div class="tab-pane fade" id="profile" role="tabpanel">
+                        <div class="tab-header">
+                            <h3>My Profile</h3>
+                        </div>
+                        <div class="profile-card">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="profile-info">
+                                        <h5>Personal Information</h5>
+                                        <div class="info-item">
+                                            <label>Full Name:</label>
+                                            <span id="profileName">-</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Email:</label>
+                                            <span id="profileEmail">-</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Phone:</label>
+                                            <span id="profilePhone">-</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Member Since:</label>
+                                            <span id="profileSince">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="profile-stats">
+                                        <h5>Investment Summary</h5>
+                                        <div class="stat-item">
+                                            <label>Active Chits:</label>
+                                            <span id="profileActiveChits">0</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <label>Total Investment:</label>
+                                            <span id="profileTotalInvestment">₹0</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <label>Returns Received:</label>
+                                            <span id="profileReturns">₹0</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <label>Credit Score:</label>
+                                            <span class="badge bg-success" id="profileCreditScore">Good</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Chit Fund Modal -->
+    <div class="modal fade" id="joinChitModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Join Chit Fund</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="joinChitForm">
+                        <div class="mb-3">
+                            <label for="chitCode" class="form-label">Enter Chit Fund Code *</label>
+                            <input type="text" class="form-control" id="chitCode" placeholder="Enter unique chit code" required>
+                            <small class="form-text text-muted">Get the chit code from your manager</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="memberCode" class="form-label">Your Member Code (Optional)</label>
+                            <input type="text" class="form-control" id="memberCode" placeholder="If provided by manager">
+                        </div>
+                    </form>
+                    <div id="chitPreview" class="chit-preview d-none mt-3 p-3 border rounded">
+                        <h6>Chit Fund Details:</h6>
+                        <p id="previewChitName" class="mb-1"></p>
+                        <p id="previewChitAmount" class="mb-1"></p>
+                        <p id="previewChitDuration" class="mb-0"></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="verifyChitBtn">Verify Code</button>
+                    <button type="button" class="btn btn-success d-none" id="joinChitConfirmBtn">Join Chit Fund</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="dashboard-member.js"></script>
+</body>
+</html>
