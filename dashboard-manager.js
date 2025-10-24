@@ -603,7 +603,7 @@ document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFu
         deleteBtn.addEventListener('click', () => deleteChit(chit.id));
     }
 
-  // View chit details - COMPLETE IMPLEMENTATION
+// Enhanced view chit details function
 async function viewChitDetails(chitId) {
     try {
         const chitDoc = await db.collection('chits').doc(chitId).get();
@@ -631,6 +631,25 @@ async function viewChitDetails(chitId) {
         progressBar.style.width = `${progress.percentage}%`;
         progressText.textContent = `${progress.monthsPassed} of ${progress.totalMonths} months completed (${Math.round(progress.percentage)}%)`;
 
+        // Store current chit ID for member operations
+        document.getElementById('viewChitModal').setAttribute('data-current-chit', chitId);
+        
+        // Load members for this chit
+        await loadChitMembers(chitId);
+        
+        // Update members count
+        document.getElementById('membersCount').textContent = chit.currentMembers || 0;
+        document.getElementById('maxMembersCount').textContent = chit.maxMembers || 0;
+
+        // Add refresh button event
+        document.getElementById('refreshMembersBtn').onclick = () => loadChitMembers(chitId);
+        
+        // Add edit button event
+        document.getElementById('viewChitEditBtn').onclick = () => {
+            viewChitModal.hide();
+            setTimeout(() => editChit(chitId), 300);
+        };
+
         // Show the modal
         viewChitModal.show();
     } catch (error) {
@@ -638,7 +657,7 @@ async function viewChitDetails(chitId) {
         alert('Error loading chit details: ' + error.message);
     }
 }
-
+    
   // Edit chit - COMPLETE IMPLEMENTATION
 async function editChit(chitId) {
     try {
@@ -752,7 +771,7 @@ function setLoading(button, isLoading) {
     };
 });
 
-// View chit details - IMPLEMENTED
+// Enhanced view chit details function
 async function viewChitDetails(chitId) {
     try {
         const chitDoc = await db.collection('chits').doc(chitId).get();
@@ -779,6 +798,25 @@ async function viewChitDetails(chitId) {
         const progressText = document.getElementById('viewProgressText');
         progressBar.style.width = `${progress.percentage}%`;
         progressText.textContent = `${progress.monthsPassed} of ${progress.totalMonths} months completed (${Math.round(progress.percentage)}%)`;
+
+        // Store current chit ID for member operations
+        document.getElementById('viewChitModal').setAttribute('data-current-chit', chitId);
+        
+        // Load members for this chit
+        await loadChitMembers(chitId);
+        
+        // Update members count
+        document.getElementById('membersCount').textContent = chit.currentMembers || 0;
+        document.getElementById('maxMembersCount').textContent = chit.maxMembers || 0;
+
+        // Add refresh button event
+        document.getElementById('refreshMembersBtn').onclick = () => loadChitMembers(chitId);
+        
+        // Add edit button event
+        document.getElementById('viewChitEditBtn').onclick = () => {
+            viewChitModal.hide();
+            setTimeout(() => editChit(chitId), 300);
+        };
 
         // Show the modal
         viewChitModal.show();
@@ -988,4 +1026,106 @@ function renderChitMember(user, membership) {
     
     // Add event listeners
     attachMemberActionListeners(memberElement, membership);
+}
+
+// Member approval functions - ADD THESE
+function attachMemberActionListeners(element, membership) {
+    const approveBtn = element.querySelector('.approve-member-btn');
+    const rejectBtn = element.querySelector('.reject-member-btn');
+    const suspendBtn = element.querySelector('.suspend-member-btn');
+    const viewPaymentsBtn = element.querySelector('.view-payments-btn');
+
+    if (approveBtn) {
+        approveBtn.addEventListener('click', () => approveMember(membership.id));
+    }
+    if (rejectBtn) {
+        rejectBtn.addEventListener('click', () => rejectMember(membership.id));
+    }
+    if (suspendBtn) {
+        suspendBtn.addEventListener('click', () => suspendMember(membership.id));
+    }
+    if (viewPaymentsBtn) {
+        viewPaymentsBtn.addEventListener('click', () => viewMemberPayments(membership.memberId, membership.chitId));
+    }
+}
+
+// Approve member
+async function approveMember(membershipId) {
+    if (!confirm('Approve this member to join the chit fund?')) return;
+
+    try {
+        await db.collection('chitMemberships').doc(membershipId).update({
+            status: 'approved',
+            approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showSuccess('Member approved successfully!');
+        
+        // Reload members list
+        const currentChitId = document.getElementById('viewChitModal').getAttribute('data-current-chit');
+        if (currentChitId) {
+            await loadChitMembers(currentChitId);
+        }
+
+    } catch (error) {
+        console.error('Error approving member:', error);
+        alert('Error approving member: ' + error.message);
+    }
+}
+
+// Reject member
+async function rejectMember(membershipId) {
+    if (!confirm('Reject this member from joining the chit fund?')) return;
+
+    try {
+        await db.collection('chitMemberships').doc(membershipId).update({
+            status: 'rejected',
+            rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showSuccess('Member rejected successfully!');
+        
+        // Reload members list
+        const currentChitId = document.getElementById('viewChitModal').getAttribute('data-current-chit');
+        if (currentChitId) {
+            await loadChitMembers(currentChitId);
+        }
+
+    } catch (error) {
+        console.error('Error rejecting member:', error);
+        alert('Error rejecting member: ' + error.message);
+    }
+}
+
+// Suspend member
+async function suspendMember(membershipId) {
+    if (!confirm('Suspend this member from the chit fund?')) return;
+
+    try {
+        await db.collection('chitMemberships').doc(membershipId).update({
+            status: 'suspended',
+            suspendedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showSuccess('Member suspended successfully!');
+        
+        // Reload members list
+        const currentChitId = document.getElementById('viewChitModal').getAttribute('data-current-chit');
+        if (currentChitId) {
+            await loadChitMembers(currentChitId);
+        }
+
+    } catch (error) {
+        console.error('Error suspending member:', error);
+        alert('Error suspending member: ' + error.message);
+    }
+}
+
+// View member payments
+async function viewMemberPayments(memberId, chitId) {
+    // Implementation for viewing member payments
+    alert(`View payments for member: ${memberId} in chit: ${chitId}`);
 }
