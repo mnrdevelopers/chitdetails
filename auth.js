@@ -121,3 +121,45 @@ registerFormElement.addEventListener('submit', async (e) => {
         // Save additional user data to Firestore
         await db.collection('users').doc(user.uid).set({
             name: name,
+            email: email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            totalFunds: 0,
+            activeChits: 0
+        });
+        
+        showMessage(registerMessage, 'Account created successfully! Redirecting...', 'success');
+        
+        // Redirect to dashboard after successful registration
+        setTimeout(() => {
+            window.location.href = 'dashboard.html';
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Registration error:', error);
+        let errorMessage = 'An error occurred during registration.';
+        
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                errorMessage = 'An account with this email already exists.';
+                break;
+            case 'auth/weak-password':
+                errorMessage = 'Password is too weak.';
+                break;
+            case 'auth/invalid-email':
+                errorMessage = 'Invalid email address.';
+                break;
+        }
+        
+        showMessage(registerMessage, errorMessage, 'error');
+    } finally {
+        setLoading(submitButton, false);
+    }
+});
+
+// Check if user is already logged in
+auth.onAuthStateChanged((user) => {
+    if (user && window.location.pathname.includes('auth.html')) {
+        // User is logged in and on auth page, redirect to dashboard
+        window.location.href = 'dashboard.html';
+    }
+});
