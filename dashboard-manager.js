@@ -35,7 +35,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let userData = null;
 
     // Check authentication and role
-    auth.onAuthStateChanged(async (user) => {
+ // Check authentication and role with enhanced error handling
+auth.onAuthStateChanged(async (user) => {
+    try {
         if (user) {
             currentUser = user;
             await loadUserData();
@@ -45,7 +47,12 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             window.location.href = 'auth.html';
         }
-    });
+    } catch (error) {
+        console.error('Error in auth state change:', error);
+        // Redirect to auth page on critical errors
+        window.location.href = 'auth.html';
+    }
+});
 
     // Load user data
     async function loadUserData() {
@@ -382,31 +389,49 @@ async function updateStats() {
         };
     }
 
-    // Event Listeners
-    createChitBtn.addEventListener('click', () => {
+  // Enhanced event listeners with error handling
+createChitBtn.addEventListener('click', () => {
+    try {
         createChitModal.show();
-    });
+    } catch (error) {
+        console.error('Error showing modal:', error);
+    }
+});
 
-    addMemberBtn.addEventListener('click', () => {
+addMemberBtn.addEventListener('click', () => {
+    try {
         addMemberModal.show();
-    });
+    } catch (error) {
+        console.error('Error showing modal:', error);
+    }
+});
 
-    saveChitBtn.addEventListener('click', async () => {
+saveChitBtn.addEventListener('click', async () => {
+    try {
         await createChitFund();
-    });
+    } catch (error) {
+        console.error('Error in chit creation:', error);
+    }
+});
 
-    saveMemberBtn.addEventListener('click', async () => {
+saveMemberBtn.addEventListener('click', async () => {
+    try {
         await addMember();
-    });
+    } catch (error) {
+        console.error('Error in member addition:', error);
+    }
+});
 
-    logoutBtn.addEventListener('click', async () => {
-        try {
-            await auth.signOut();
-            window.location.href = 'auth.html';
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
-    });
+logoutBtn.addEventListener('click', async () => {
+    try {
+        await auth.signOut();
+        window.location.href = 'auth.html';
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Fallback: redirect anyway
+        window.location.href = 'auth.html';
+    }
+});
 
     // Create chit fund
     async function createChitFund() {
