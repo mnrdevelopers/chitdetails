@@ -541,33 +541,83 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Load members with CRUD operations (Improved: focuses on 'members' collection for simplicity)
+    // Load members with CRUD operations (FIXED to include self-registered users who joined a chit)
    async function loadMembers() {
     try {
-        // Only load members created by this manager (in 'members' collection)
-        // Self-registered users are not managed here unless manually added
-        const membersSnapshot = await db.collection('members')
+        // 1. Get all chit memberships belonging to this manager's chits
+        const membershipsSnapshot = await db.collection('chitMemberships')
             .where('managerId', '==', currentUser.uid)
             .get();
 
+        const memberIds = new Set();
+        membershipsSnapshot.forEach(doc => {
+            memberIds.add(doc.data().memberId);
+        });
+
+        const allMembers = [];
         membersList.innerHTML = '';
 
-        if (membersSnapshot.empty) {
+        if (memberIds.size === 0) {
             membersList.innerHTML = `
                 <div class="text-center py-5">
                     <i class="fas fa-users fa-3x text-muted mb-3"></i>
                     <h5 class="text-muted">No Members Found</h5>
-                    <p class="text-muted">Add members to your chit funds</p>
+                    <p class="text-muted">Add members or have them join a chit fund to see them here.</p>
                 </div>
             `;
-            return;
+            // Manually added members might still exist even without a membership
+            const membersSnapshot = await db.collection('members')
+                .where('managerId', '==', currentUser.uid)
+                .get();
+                
+            if (membersSnapshot.empty) {
+                 return; // Really no members at all
+            }
+            membersSnapshot.forEach(doc => {
+                allMembers.push({ id: doc.id, ...doc.data() });
+            });
+            // If we only have manually added members who haven't joined a chit, render them.
+        } else {
+            // 2. Fetch or create a managed 'member' document for each unique memberId found in memberships
+            const fetchPromises = Array.from(memberIds).map(async memberId => {
+                let memberDoc = await db.collection('members').doc(memberId).get();
+
+                if (!memberDoc.exists) {
+                    // This is a self-registered user who joined a chit. Create their member record under this manager.
+                    const userDoc = await db.collection('users').doc(memberId).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        const newMemberData = {
+                            name: userData.name || userData.email,
+                            phone: userData.phone || 'N/A (Registered User)',
+                            managerId: currentUser.uid,
+                            activeChits: 1, // Assume 1 for simplicity when first seen
+                            totalPaid: 0,
+                            status: 'active',
+                            joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+                        // Create the member document using the user's UID as the ID
+                        await db.collection('members').doc(memberId).set(newMemberData);
+                        allMembers.push({ id: memberId, ...newMemberData });
+                    }
+                } else {
+                    // Member already exists (manually added or previously synchronized)
+                    allMembers.push({ id: memberDoc.id, ...memberDoc.data() });
+                }
+            });
+            await Promise.all(fetchPromises);
         }
 
-        // Render all members
-        membersSnapshot.forEach(doc => {
-            const member = { id: doc.id, ...doc.data() };
-            renderMember(member);
-        });
+        // 3. Render all consolidated members
+        if (allMembers.length > 0) {
+            membersList.innerHTML = ''; // Clear the 'No Members' message if populated
+            allMembers.forEach(member => {
+                renderMember(member);
+            });
+        }
+        
+        // After loading members, ensure stats are updated
+        await updateStats();
 
     } catch (error) {
         console.error('Error loading members:', error);
@@ -879,15 +929,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     membershipsSnapshot.forEach(doc => {
                         membershipDeletePromises.push(db.collection('chitMemberships').doc(doc.id).delete());
                         
-                        // Decrement chit member count
-                        const chitId = doc.data().chitId;
-                        chitUpdatePromises.push(db.collection('chits').doc(chitId).get().then(chitDoc => {
-                            if (chitDoc.exists) {
-                                return db.collection('chits').doc(chitId).update({
-                                    currentMembers: Math.max(0, (chitDoc.data().currentMembers || 0) - 1)
-                                });
+                        // Decrement active chits count for each member
+                        const memberId = doc.data().memberId;
+                        db.collection('members').doc(memberId).get().then(memberDoc => {
+                            if (memberDoc.exists) {
+                                const member = memberDoc.data();
+                                db.collection('members').doc(memberId).update({
+                                    activeChits: Math.max(0, (member.activeChits || 0) - 1)
+                                }).catch(console.error);
                             }
-                        }));
+                        });
                     });
                     await Promise.all([...membershipDeletePromises, ...chitUpdatePromises]);
                 }
