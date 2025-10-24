@@ -180,24 +180,28 @@ function setupModal(modalId, openBtnId, closeBtnClass) {
     const openBtn = document.getElementById(openBtnId);
     const closeBtns = document.querySelectorAll(`.${closeBtnClass}`);
     
-    if (openBtn) {
+    if (openBtn && modal) {
         openBtn.addEventListener('click', () => {
             modal.classList.add('active');
         });
     }
     
-    closeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            modal.classList.remove('active');
+    if (closeBtns) {
+        closeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
         });
-    });
+    }
     
     // Close modal when clicking outside
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('active');
-        }
-    });
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    }
 }
 
 // Initialize modals if they exist
