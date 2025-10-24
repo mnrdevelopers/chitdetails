@@ -1,8 +1,9 @@
-// Wait for Firebase to be loaded
+// Wait for DOM and Firebase to be loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if Firebase auth is available
+    // Check if Firebase is available
     if (typeof firebase === 'undefined' || !firebase.auth) {
         console.error('Firebase Auth not loaded');
+        showGlobalError('Firebase not loaded. Please refresh the page.');
         return;
     }
 
@@ -20,32 +21,119 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginMessage = document.getElementById('loginMessage');
     const registerMessage = document.getElementById('registerMessage');
 
+    // Password toggle elements
+    const loginPasswordToggle = document.getElementById('loginPasswordToggle');
+    const registerPasswordToggle = document.getElementById('registerPasswordToggle');
+    const registerConfirmPasswordToggle = document.getElementById('registerConfirmPasswordToggle');
+
+    // Initialize password toggles
+    initPasswordToggles();
+
     // Switch between login and register forms
     showRegister.addEventListener('click', (e) => {
         e.preventDefault();
-        loginForm.classList.remove('active');
-        registerForm.classList.add('active');
-        clearMessages();
+        switchToForm('register');
     });
 
     showLogin.addEventListener('click', (e) => {
         e.preventDefault();
-        registerForm.classList.remove('active');
-        loginForm.classList.add('active');
-        clearMessages();
+        switchToForm('login');
     });
+
+    // Switch form with animation
+    function switchToForm(formType) {
+        const currentForm = formType === 'login' ? registerForm : loginForm;
+        const newForm = formType === 'login' ? loginForm : registerForm;
+        
+        // Animate out current form
+        currentForm.style.transform = 'translateX(-30px)';
+        currentForm.style.opacity = '0';
+        currentForm.classList.remove('active');
+        
+        // Animate in new form
+        setTimeout(() => {
+            newForm.style.transform = 'translateX(0)';
+            newForm.style.opacity = '1';
+            newForm.classList.add('active');
+        }, 300);
+        
+        clearMessages();
+        resetForms();
+    }
+
+    // Initialize password visibility toggles
+    function initPasswordToggles() {
+        // Login password toggle
+        loginPasswordToggle.addEventListener('click', () => {
+            togglePasswordVisibility('loginPassword', loginPasswordToggle);
+        });
+
+        // Register password toggle
+        registerPasswordToggle.addEventListener('click', () => {
+            togglePasswordVisibility('registerPassword', registerPasswordToggle);
+        });
+
+        // Register confirm password toggle
+        registerConfirmPasswordToggle.addEventListener('click', () => {
+            togglePasswordVisibility('registerConfirmPassword', registerConfirmPasswordToggle);
+        });
+    }
+
+    // Toggle password visibility
+    function togglePasswordVisibility(inputId, toggleButton) {
+        const input = document.getElementById(inputId);
+        const icon = toggleButton.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
 
     // Clear message alerts
     function clearMessages() {
         loginMessage.classList.add('d-none');
         registerMessage.classList.add('d-none');
+        loginMessage.className = 'alert-message d-none';
+        registerMessage.className = 'alert-message d-none';
+    }
+
+    // Reset form fields
+    function resetForms() {
+        loginFormElement.reset();
+        registerFormElement.reset();
     }
 
     // Show message alert
     function showMessage(element, message, type) {
         element.textContent = message;
-        element.className = `alert alert-${type}`;
+        element.className = `alert-message ${type}`;
         element.classList.remove('d-none');
+        
+        // Auto hide success messages after 5 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                element.classList.add('d-none');
+            }, 5000);
+        }
+    }
+
+    // Show global error message
+    function showGlobalError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger position-fixed top-0 start-50 translate-middle-x mt-3';
+        errorDiv.style.zIndex = '9999';
+        errorDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(errorDiv);
     }
 
     // Set loading state for button
@@ -59,13 +147,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Validate email format
+    function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    // Validate password strength
+    function isStrongPassword(password) {
+        return password.length >= 6;
+    }
+
     // Login form submission
     loginFormElement.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const email = document.getElementById('loginEmail').value;
+        const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
-        const submitButton = loginFormElement.querySelector('button[type="submit"]');
+        const submitButton = loginFormElement.querySelector('.btn-auth');
+        
+        // Basic validation
+        if (!email || !password) {
+            showMessage(loginMessage, 'Please fill in all fields.', 'error');
+            return;
+        }
+        
+        if (!isValidEmail(email)) {
+            showMessage(loginMessage, 'Please enter a valid email address.', 'error');
+            return;
+        }
         
         setLoading(submitButton, true);
         
@@ -73,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const userCredential = await auth.signInWithEmailAndPassword(email, password);
             const user = userCredential.user;
             
-            showMessage(loginMessage, 'Login successful! Redirecting...', 'success');
+            showMessage(loginMessage, 'Login successful! Redirecting to dashboard...', 'success');
             
             // Redirect to dashboard after successful login
             setTimeout(() => {
@@ -82,20 +192,23 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Login error:', error);
-            let errorMessage = 'An error occurred during login.';
+            let errorMessage = 'An error occurred during login. Please try again.';
             
             switch (error.code) {
                 case 'auth/user-not-found':
-                    errorMessage = 'No account found with this email.';
+                    errorMessage = 'No account found with this email address.';
                     break;
                 case 'auth/wrong-password':
-                    errorMessage = 'Incorrect password.';
+                    errorMessage = 'Incorrect password. Please try again.';
                     break;
                 case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address.';
+                    errorMessage = 'Invalid email address format.';
                     break;
                 case 'auth/too-many-requests':
                     errorMessage = 'Too many failed attempts. Please try again later.';
+                    break;
+                case 'auth/user-disabled':
+                    errorMessage = 'This account has been disabled.';
                     break;
             }
             
@@ -109,21 +222,36 @@ document.addEventListener('DOMContentLoaded', function() {
     registerFormElement.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const name = document.getElementById('registerName').value;
-        const email = document.getElementById('registerEmail').value;
+        const name = document.getElementById('registerName').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
         const password = document.getElementById('registerPassword').value;
         const confirmPassword = document.getElementById('registerConfirmPassword').value;
-        const submitButton = registerFormElement.querySelector('button[type="submit"]');
+        const acceptTerms = document.getElementById('acceptTerms').checked;
+        const submitButton = registerFormElement.querySelector('.btn-auth');
         
-        // Validate passwords match
+        // Validation
+        if (!name || !email || !password || !confirmPassword) {
+            showMessage(registerMessage, 'Please fill in all fields.', 'error');
+            return;
+        }
+        
+        if (!isValidEmail(email)) {
+            showMessage(registerMessage, 'Please enter a valid email address.', 'error');
+            return;
+        }
+        
+        if (!isStrongPassword(password)) {
+            showMessage(registerMessage, 'Password should be at least 6 characters long.', 'error');
+            return;
+        }
+        
         if (password !== confirmPassword) {
             showMessage(registerMessage, 'Passwords do not match.', 'error');
             return;
         }
         
-        // Validate password strength
-        if (password.length < 6) {
-            showMessage(registerMessage, 'Password should be at least 6 characters.', 'error');
+        if (!acceptTerms) {
+            showMessage(registerMessage, 'Please accept the Terms of Service and Privacy Policy.', 'error');
             return;
         }
         
@@ -139,32 +267,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 email: email,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 totalFunds: 0,
-                activeChits: 0
+                activeChits: 0,
+                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            showMessage(registerMessage, 'Account created successfully! Redirecting...', 'success');
+            showMessage(registerMessage, 'Account created successfully! Welcome to ChitFund Pro.', 'success');
             
             // Redirect to dashboard after successful registration
             setTimeout(() => {
                 window.location.href = 'dashboard.html';
-            }, 1500);
+            }, 2000);
             
         } catch (error) {
             console.error('Registration error:', error);
-            let errorMessage = 'An error occurred during registration.';
+            let errorMessage = 'An error occurred during registration. Please try again.';
             
             switch (error.code) {
                 case 'auth/email-already-in-use':
                     errorMessage = 'An account with this email already exists.';
                     break;
                 case 'auth/weak-password':
-                    errorMessage = 'Password is too weak.';
+                    errorMessage = 'Password is too weak. Please choose a stronger password.';
                     break;
                 case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address.';
+                    errorMessage = 'Invalid email address format.';
                     break;
                 case 'auth/operation-not-allowed':
-                    errorMessage = 'Email/password accounts are not enabled.';
+                    errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+                    break;
+                case 'auth/network-request-failed':
+                    errorMessage = 'Network error. Please check your internet connection.';
                     break;
             }
             
@@ -181,4 +313,19 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = 'dashboard.html';
         }
     });
+
+    // Add input animations
+    document.querySelectorAll('.form-control').forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.classList.add('focused');
+        });
+        
+        input.addEventListener('blur', function() {
+            if (!this.value) {
+                this.parentElement.classList.remove('focused');
+            }
+        });
+    });
+
+    console.log('Auth page initialized successfully');
 });
