@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChitFund Pro | Dashboard</title>
+    <title>ChitFund Pro | Manager Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -19,8 +19,8 @@
             <div class="navbar-nav ms-auto">
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-user-circle me-1"></i>
-                        <span id="userName">User</span>
+                        <i class="fas fa-user-tie me-1"></i>
+                        <span id="userName">Manager</span>
                     </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
@@ -35,29 +35,29 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="dashboard-header">
-                    <h1>Dashboard</h1>
-                    <p>Welcome back to your chit fund management portal</p>
+                    <h1><i class="fas fa-user-tie me-2"></i>Manager Dashboard</h1>
+                    <p>Manage your chit funds and members efficiently</p>
                 </div>
             </div>
         </div>
 
-        <!-- Stats Cards -->
+        <!-- Quick Stats -->
         <div class="row mb-4">
             <div class="col-md-3 col-6 mb-3">
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-wallet"></i>
+                        <i class="fas fa-users"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="totalFunds">₹0</h3>
-                        <p>Total Funds</p>
+                        <h3 id="totalMembers">0</h3>
+                        <p>Total Members</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-6 mb-3">
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-users"></i>
+                        <i class="fas fa-file-contract"></i>
                     </div>
                     <div class="stat-info">
                         <h3 id="activeChits">0</h3>
@@ -68,75 +68,220 @@
             <div class="col-md-3 col-6 mb-3">
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-calendar-check"></i>
+                        <i class="fas fa-indian-rupee-sign"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="duePayments">0</h3>
-                        <p>Due Payments</p>
+                        <h3 id="totalCollection">₹0</h3>
+                        <p>Monthly Collection</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 col-6 mb-3">
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-chart-line"></i>
+                        <i class="fas fa-trophy"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="totalReturns">₹0</h3>
-                        <p>Total Returns</p>
+                        <h3 id="auctionsThisMonth">0</h3>
+                        <p>Auctions This Month</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Chit Funds List -->
-        <div class="row">
+        <!-- Action Buttons -->
+        <div class="row mb-4">
             <div class="col-12">
-                <div class="section-header">
-                    <h2>Your Chit Funds</h2>
-                    <button class="btn btn-primary" id="addChitBtn">
-                        <i class="fas fa-plus me-2"></i>Add New Chit
+                <div class="action-buttons">
+                    <button class="btn btn-primary me-2 mb-2" id="createChitBtn">
+                        <i class="fas fa-plus me-2"></i>Create New Chit
+                    </button>
+                    <button class="btn btn-success me-2 mb-2" id="addMemberBtn">
+                        <i class="fas fa-user-plus me-2"></i>Add Member
+                    </button>
+                    <button class="btn btn-warning me-2 mb-2" id="manageAuctionsBtn">
+                        <i class="fas fa-gavel me-2"></i>Manage Auctions
+                    </button>
+                    <button class="btn btn-info me-2 mb-2" id="viewReportsBtn">
+                        <i class="fas fa-chart-bar me-2"></i>View Reports
                     </button>
                 </div>
-                
-                <div id="chitFundsList" class="chit-list">
-                    <!-- Chit funds will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="managerTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="chits-tab" data-bs-toggle="tab" data-bs-target="#chits" type="button">
+                            <i class="fas fa-file-contract me-2"></i>Chit Funds
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="members-tab" data-bs-toggle="tab" data-bs-target="#members" type="button">
+                            <i class="fas fa-users me-2"></i>Members
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="auctions-tab" data-bs-toggle="tab" data-bs-target="#auctions" type="button">
+                            <i class="fas fa-gavel me-2"></i>Auctions
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button">
+                            <i class="fas fa-rupee-sign me-2"></i>Payments
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="managerTabContent">
+                    <!-- Chits Tab -->
+                    <div class="tab-pane fade show active" id="chits" role="tabpanel">
+                        <div class="tab-header">
+                            <h3>Chit Funds Management</h3>
+                            <button class="btn btn-primary" id="addChitBtn">
+                                <i class="fas fa-plus me-2"></i>Create Chit Fund
+                            </button>
+                        </div>
+                        <div id="chitFundsList" class="chit-list">
+                            <!-- Chit funds will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Members Tab -->
+                    <div class="tab-pane fade" id="members" role="tabpanel">
+                        <div class="tab-header">
+                            <h3>Members Management</h3>
+                            <button class="btn btn-success" id="addNewMemberBtn">
+                                <i class="fas fa-user-plus me-2"></i>Add New Member
+                            </button>
+                        </div>
+                        <div id="membersList" class="members-list">
+                            <!-- Members will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Auctions Tab -->
+                    <div class="tab-pane fade" id="auctions" role="tabpanel">
+                        <div class="tab-header">
+                            <h3>Auctions Management</h3>
+                            <button class="btn btn-warning" id="scheduleAuctionBtn">
+                                <i class="fas fa-calendar-plus me-2"></i>Schedule Auction
+                            </button>
+                        </div>
+                        <div id="auctionsList" class="auctions-list">
+                            <!-- Auctions will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Payments Tab -->
+                    <div class="tab-pane fade" id="payments" role="tabpanel">
+                        <div class="tab-header">
+                            <h3>Payments Tracking</h3>
+                            <button class="btn btn-info" id="recordPaymentBtn">
+                                <i class="fas fa-money-bill-wave me-2"></i>Record Payment
+                            </button>
+                        </div>
+                        <div id="paymentsList" class="payments-list">
+                            <!-- Payments will be loaded here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Add Chit Fund Modal -->
-    <div class="modal fade" id="addChitModal" tabindex="-1">
-        <div class="modal-dialog">
+    <!-- Create Chit Fund Modal -->
+    <div class="modal fade" id="createChitModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add New Chit Fund</h5>
+                    <h5 class="modal-title">Create New Chit Fund</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="addChitForm">
-                        <div class="mb-3">
-                            <label for="chitName" class="form-label">Chit Name</label>
-                            <input type="text" class="form-control" id="chitName" required>
+                    <form id="createChitForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="chitName" class="form-label">Chit Name *</label>
+                                <input type="text" class="form-control" id="chitName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="chitCode" class="form-label">Unique Chit Code *</label>
+                                <input type="text" class="form-control" id="chitCode" required>
+                                <small class="form-text text-muted">Members will use this code to join</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="totalAmount" class="form-label">Total Chit Amount *</label>
+                                <input type="number" class="form-control" id="totalAmount" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="duration" class="form-label">Duration (Months) *</label>
+                                <input type="number" class="form-control" id="duration" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="monthlyAmount" class="form-label">Monthly Amount *</label>
+                                <input type="number" class="form-control" id="monthlyAmount" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="startDate" class="form-label">Start Date *</label>
+                                <input type="date" class="form-control" id="startDate" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="maxMembers" class="form-label">Maximum Members *</label>
+                                <input type="number" class="form-control" id="maxMembers" required>
+                            </div>
                         </div>
                         <div class="mb-3">
-                            <label for="chitAmount" class="form-label">Total Amount</label>
-                            <input type="number" class="form-control" id="chitAmount" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="chitDuration" class="form-label">Duration (months)</label>
-                            <input type="number" class="form-control" id="chitDuration" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="monthlyPayment" class="form-label">Monthly Payment</label>
-                            <input type="number" class="form-control" id="monthlyPayment" required>
+                            <label for="chitDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="chitDescription" rows="3"></textarea>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveChitBtn">Save Chit Fund</button>
+                    <button type="button" class="btn btn-primary" id="saveChitBtn">Create Chit Fund</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Member Modal -->
+    <div class="modal fade" id="addMemberModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Member</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addMemberForm">
+                        <div class="mb-3">
+                            <label for="memberName" class="form-label">Full Name *</label>
+                            <input type="text" class="form-control" id="memberName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="memberEmail" class="form-label">Email Address *</label>
+                            <input type="email" class="form-control" id="memberEmail" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="memberPhone" class="form-label">Phone Number *</label>
+                            <input type="tel" class="form-control" id="memberPhone" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="memberAddress" class="form-label">Address</label>
+                            <textarea class="form-control" id="memberAddress" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveMemberBtn">Add Member</button>
                 </div>
             </div>
         </div>
@@ -149,6 +294,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="firebase-config.js"></script>
-    <script src="dashboard.js"></script>
+    <script src="dashboard-manager.js"></script>
 </body>
 </html>
