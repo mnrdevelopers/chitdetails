@@ -3,44 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Electricity Tracker</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>ChitFund - Login</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h2>Electricity Usage Tracker</h2>
-        
-        <!-- Input Form -->
-        <form id="meterForm">
-            <label for="date">Date:</label>
-            <input type="date" id="date" required>
-            
-            <label for="units">Meter Reading (kWh):</label>
-            <input type="number" id="units" required>
-            
-            <button type="submit">Save Reading</button>
-        </form>
+        <header class="app-header">
+            <h1>ChitFund</h1>
+            <p>Manage your village chit funds with ease</p>
+        </header>
 
-        <!-- Display Consumption -->
-        <h3>Consumption History</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Reading (kWh)</th>
-                    <th>Units Used</th>
-                    <th>Estimated Bill (₹)</th>
-                </tr>
-            </thead>
-            <tbody id="historyTable"></tbody>
-        </table>
+        <main class="auth-container">
+            <div class="auth-tabs">
+                <button class="tab-btn active" id="login-tab">Login</button>
+                <button class="tab-btn" id="signup-tab">Sign Up</button>
+            </div>
 
-        <!-- Usage Chart -->
-        <h3>Usage Trend</h3>
-        <canvas id="usageChart"></canvas>
+            <div class="auth-form-container">
+                <!-- Login Form -->
+                <form id="login-form" class="auth-form active">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Login</button>
+                </form>
+
+                <!-- Signup Form -->
+                <form id="signup-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="signup-name">Full Name</label>
+                        <input type="text" id="signup-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-email">Email</label>
+                        <input type="email" id="signup-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" id="signup-password" minlength="6" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Sign Up</button>
+                </form>
+            </div>
+
+            <div id="auth-message" class="message"></div>
+        </main>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
