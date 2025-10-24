@@ -86,28 +86,49 @@ document.addEventListener('DOMContentLoaded', function() {
         hideProgress();
     });
 
-    // Switch form with animation
-    function switchToForm(formType) {
-        const forms = [loginForm, registerForm, roleSelectionForm];
-        forms.forEach(form => {
-            form.classList.remove('active');
-            form.style.opacity = '0';
-            form.style.transform = 'translateX(30px)';
-        });
+   // Switch form with animation - FIXED VERSION
+function switchToForm(formType) {
+    const forms = [];
+    
+    // Only add forms that exist
+    if (loginForm) forms.push(loginForm);
+    if (registerForm) forms.push(registerForm);
+    if (roleSelectionForm) forms.push(roleSelectionForm);
+    
+    forms.forEach(form => {
+        form.classList.remove('active');
+        form.style.opacity = '0';
+        form.style.transform = 'translateX(30px)';
+    });
 
-        setTimeout(() => {
-            const targetForm = formType === 'login' ? loginForm : 
-                             formType === 'register' ? registerForm : roleSelectionForm;
+    setTimeout(() => {
+        let targetForm;
+        switch (formType) {
+            case 'login':
+                targetForm = loginForm;
+                break;
+            case 'register':
+                targetForm = registerForm;
+                break;
+            case 'roleSelection':
+                targetForm = roleSelectionForm;
+                break;
+            default:
+                targetForm = loginForm;
+        }
+        
+        if (targetForm) {
             targetForm.classList.add('active');
             targetForm.style.opacity = '1';
             targetForm.style.transform = 'translateX(0)';
-        }, 300);
-        
-        clearMessages();
-        if (formType === 'register') {
-            resetForms();
         }
+    }, 300);
+    
+    clearMessages();
+    if (formType === 'register') {
+        resetForms();
     }
+}
 
     // Initialize password visibility toggles
     function initPasswordToggles() {
@@ -155,17 +176,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Reset form fields
-    function resetForms() {
-        loginFormElement.reset();
-        registerFormElement.reset();
+function resetForms() {
+    loginFormElement.reset();
+    registerFormElement.reset();
+    
+    // Only reset roleSelectionForm if it's actually a form element
+    if (roleSelectionForm && roleSelectionForm.reset && typeof roleSelectionForm.reset === 'function') {
         roleSelectionForm.reset();
-        
-        // Reset role selection
-        roleCards.forEach(card => card.classList.remove('selected'));
-        selectedRole = null;
-        confirmRoleBtn.disabled = true;
-        tempUserData = null;
     }
+    
+    // Reset role selection
+    roleCards.forEach(card => card.classList.remove('selected'));
+    selectedRole = null;
+    if (confirmRoleBtn) {
+        confirmRoleBtn.disabled = true;
+    }
+    tempUserData = null;
+}
 
     // Show message alert
     function showMessage(element, message, type) {
