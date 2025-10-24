@@ -511,7 +511,7 @@ function renderMyChitFundWithBasicInfo(membership) {
     myChitsList.appendChild(chitElement);
 }
 
-// Enhanced verify chit code with better error handling
+// Enhanced verify chit code with approval process
 async function verifyChitCode() {
     const chitCode = document.getElementById('chitCode').value.trim().toUpperCase();
     
@@ -536,19 +536,31 @@ async function verifyChitCode() {
         const chitDoc = chitsSnapshot.docs[0];
         currentChitToJoin = { id: chitDoc.id, ...chitDoc.data() };
 
-        // Check if member is already joined
+        // Check if member is already joined or pending
         const membershipSnapshot = await db.collection('chitMemberships')
             .where('chitId', '==', currentChitToJoin.id)
             .where('memberId', '==', currentUser.uid)
             .get();
 
         if (!membershipSnapshot.empty) {
-            alert('You have already joined this chit fund');
+            const existingMembership = membershipSnapshot.docs[0].data();
+            if (existingMembership.status === 'pending') {
+                alert('Your request is pending approval from the manager.');
+            } else if (existingMembership.status === 'approved') {
+                alert('You have already joined this chit fund.');
+            } else if (existingMembership.status === 'rejected') {
+                alert('Your request was rejected by the manager.');
+            }
             return;
         }
 
         // Check if chit has available slots
-        if (currentChitToJoin.currentMembers >= currentChitToJoin.maxMembers) {
+        const approvedMembersSnapshot = await db.collection('chitMemberships')
+            .where('chitId', '==', currentChitToJoin.id)
+            .where('status', '==', 'approved')
+            .get();
+
+        if (approvedMembersSnapshot.size >= currentChitToJoin.maxMembers) {
             alert('This chit fund is already full. Please contact the manager.');
             return;
         }
@@ -557,6 +569,7 @@ async function verifyChitCode() {
         document.getElementById('previewChitName').textContent = `Name: ${currentChitToJoin.name}`;
         document.getElementById('previewChitAmount').textContent = `Total Amount: ₹${currentChitToJoin.totalAmount?.toLocaleString()}`;
         document.getElementById('previewChitDuration').textContent = `Duration: ${currentChitToJoin.duration} months`;
+        document.getElementById('previewChitMembers').textContent = `Members: ${approvedMembersSnapshot.size}/${currentChitToJoin.maxMembers} (Approved)`;
         
         document.getElementById('chitPreview').classList.remove('d-none');
         verifyChitBtn.classList.add('d-none');
@@ -570,58 +583,50 @@ async function verifyChitCode() {
     }
 }
 
-    // Join chit fund
-    async function joinChitFund() {
-        if (!currentChitToJoin) {
-            alert('Please verify chit code first');
-            return;
-        }
-
-        try {
-            setLoading(joinChitConfirmBtn, true);
-
-            // Create membership
-            const membershipData = {
-                chitId: currentChitToJoin.id,
-                memberId: currentUser.uid,
-                chitName: currentChitToJoin.name,
-                chitCode: currentChitToJoin.chitCode,
-                joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                status: 'active',
-                lifted: false,
-                totalPaid: 0,
-                currentMonthlyAmount: currentChitToJoin.monthlyAmount
-            };
-
-            await db.collection('chitMemberships').add(membershipData);
-
-            // Update chit member count
-            await db.collection('chits').doc(currentChitToJoin.id).update({
-                currentMembers: firebase.firestore.FieldValue.increment(1)
-            });
-
-            // Update user's active chits count
-            await db.collection('users').doc(currentUser.uid).update({
-                activeChits: firebase.firestore.FieldValue.increment(1)
-            });
-
-            // Show success message
-            showSuccess(`Successfully joined ${currentChitToJoin.name}!`);
-            
-            // Close modal and reset
-            joinChitModal.hide();
-            resetJoinForm();
-            
-            // Reload dashboard
-            await loadMemberDashboard();
-
-        } catch (error) {
-            console.error('Error joining chit fund:', error);
-            alert('Error joining chit fund: ' + error.message);
-        } finally {
-            setLoading(joinChitConfirmBtn, false);
-        }
+  // Enhanced join chit fund with approval process
+async function joinChitFund() {
+    if (!currentChitToJoin) {
+        alert('Please verify chit code first');
+        return;
     }
+
+    try {
+        setLoading(joinChitConfirmBtn, true);
+
+        // Create membership with pending status
+        const membershipData = {
+            chitId: currentChitToJoin.id,
+            memberId: currentUser.uid,
+            chitName: currentChitToJoin.name,
+            chitCode: currentChitToJoin.chitCode,
+            managerId: currentChitToJoin.managerId,
+            joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            status: 'pending', // Requires manager approval
+            lifted: false,
+            totalPaid: 0,
+            currentMonthlyAmount: currentChitToJoin.monthlyAmount,
+            requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('chitMemberships').add(membershipData);
+
+        // Show success message with approval info
+        showSuccess(`Join request sent for ${currentChitToJoin.name}! Waiting for manager approval.`);
+        
+        // Close modal and reset
+        joinChitModal.hide();
+        resetJoinForm();
+        
+        // Reload dashboard to show pending status
+        await loadMemberDashboard();
+
+    } catch (error) {
+        console.error('Error joining chit fund:', error);
+        alert('Error joining chit fund: ' + error.message);
+    } finally {
+        setLoading(joinChitConfirmBtn, false);
+    }
+}
 
     // Attach event listeners to chit actions
     function attachMyChitEventListeners(element, chit, membership) {
