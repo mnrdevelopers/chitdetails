@@ -287,6 +287,136 @@
         </div>
     </div>
 
+    <!-- View Chit Details Modal -->
+<div class="modal fade" id="viewChitModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chit Fund Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Chit Name</label>
+                        <p id="viewChitName" class="form-control-plaintext">-</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Chit Code</label>
+                        <p id="viewChitCode" class="form-control-plaintext">-</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Total Amount</label>
+                        <p id="viewTotalAmount" class="form-control-plaintext">-</p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Monthly Amount</label>
+                        <p id="viewMonthlyAmount" class="form-control-plaintext">-</p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Duration</label>
+                        <p id="viewDuration" class="form-control-plaintext">-</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Start Date</label>
+                        <p id="viewStartDate" class="form-control-plaintext">-</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Max Members</label>
+                        <p id="viewMaxMembers" class="form-control-plaintext">-</p>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Description</label>
+                    <p id="viewDescription" class="form-control-plaintext">-</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Current Progress</label>
+                    <div class="progress mb-2" style="height: 10px;">
+                        <div id="viewProgressBar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <p id="viewProgressText" class="small text-muted">-</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Chit Fund Modal -->
+<div class="modal fade" id="editChitModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Chit Fund</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editChitForm">
+                    <input type="hidden" id="editChitId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editChitName" class="form-label">Chit Name *</label>
+                            <input type="text" class="form-control" id="editChitName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editChitCode" class="form-label">Chit Code *</label>
+                            <input type="text" class="form-control" id="editChitCode" required readonly>
+                            <small class="form-text text-muted">Chit code cannot be changed</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="editTotalAmount" class="form-label">Total Amount *</label>
+                            <input type="number" class="form-control" id="editTotalAmount" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="editDuration" class="form-label">Duration (Months) *</label>
+                            <input type="number" class="form-control" id="editDuration" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="editMonthlyAmount" class="form-label">Monthly Amount *</label>
+                            <input type="number" class="form-control" id="editMonthlyAmount" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editStartDate" class="form-label">Start Date *</label>
+                            <input type="date" class="form-control" id="editStartDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editMaxMembers" class="form-label">Maximum Members *</label>
+                            <input type="number" class="form-control" id="editMaxMembers" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="editStatus">
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateChitBtn">Update Chit Fund</button>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
