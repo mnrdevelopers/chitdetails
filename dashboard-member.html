@@ -165,58 +165,73 @@
                         </div>
                     </div>
 
-                    <!-- Profile Tab -->
-                    <div class="tab-pane fade" id="profile" role="tabpanel">
-                        <div class="tab-header">
-                            <h3>My Profile</h3>
-                        </div>
-                        <div class="profile-card">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="profile-info">
-                                        <h5>Personal Information</h5>
-                                        <div class="info-item">
-                                            <label>Full Name:</label>
-                                            <span id="profileName">-</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <label>Email:</label>
-                                            <span id="profileEmail">-</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <label>Phone:</label>
-                                            <span id="profilePhone">-</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <label>Member Since:</label>
-                                            <span id="profileSince">-</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="profile-stats">
-                                        <h5>Investment Summary</h5>
-                                        <div class="stat-item">
-                                            <label>Active Chits:</label>
-                                            <span id="profileActiveChits">0</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <label>Total Investment:</label>
-                                            <span id="profileTotalInvestment">₹0</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <label>Returns Received:</label>
-                                            <span id="profileReturns">₹0</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <label>Credit Score:</label>
-                                            <span class="badge bg-success" id="profileCreditScore">Good</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+          <!-- Profile Tab -->
+<div class="tab-pane fade" id="profile" role="tabpanel">
+    <div class="tab-header">
+        <h3>My Profile</h3>
+        <button class="btn btn-primary" id="editProfileBtn">
+            <i class="fas fa-edit me-2"></i>Edit Profile
+        </button>
+    </div>
+    <div class="profile-card">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="profile-info">
+                    <h5>Personal Information</h5>
+                    <div class="info-item">
+                        <label>Full Name:</label>
+                        <span id="profileName">-</span>
                     </div>
+                    <div class="info-item">
+                        <label>Email:</label>
+                        <span id="profileEmail">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Phone:</label>
+                        <span id="profilePhone">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Address:</label>
+                        <span id="profileAddress">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Emergency Contact:</label>
+                        <span id="profileEmergencyContact">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Member Since:</label>
+                        <span id="profileSince">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="profile-stats">
+                    <h5>Investment Summary</h5>
+                    <div class="stat-item">
+                        <label>Active Chits:</label>
+                        <span id="profileActiveChits">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Total Investment:</label>
+                        <span id="profileTotalInvestment">₹0</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Returns Received:</label>
+                        <span id="profileReturns">₹0</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Pending Payments:</label>
+                        <span id="profilePendingPayments">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Credit Score:</label>
+                        <span class="badge bg-success" id="profileCreditScore">Good</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
                 </div>
             </div>
         </div>
@@ -257,6 +272,126 @@
             </div>
         </div>
     </div>
+
+    <!-- Payment History Modal -->
+<div class="modal fade" id="paymentHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Payment History - <span id="paymentChitName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="chitPaymentHistory" class="payments-history">
+                    <!-- Chit-specific payment history will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chit Details Modal -->
+<div class="modal fade" id="chitDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chit Fund Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="chitDetailedInfo" class="chit-detailed-info">
+                    <!-- Detailed chit information will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auction Participation Modal -->
+<div class="modal fade" id="auctionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Participate in Auction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="auctionBidForm">
+                    <div class="mb-3">
+                        <label for="chitAuctionName" class="form-label">Chit Fund</label>
+                        <input type="text" class="form-control" id="chitAuctionName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bidAmount" class="form-label">Your Bid Amount (₹) *</label>
+                        <input type="number" class="form-control" id="bidAmount" required 
+                               placeholder="Enter your bid amount">
+                        <small class="form-text text-muted">Minimum bid: 60% of total amount</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bidReason" class="form-label">Reason for Bid (Optional)</label>
+                        <textarea class="form-control" id="bidReason" rows="3" 
+                                  placeholder="Why do you need this amount?"></textarea>
+                    </div>
+                </form>
+                <div id="bidPreview" class="bid-preview d-none mt-3 p-3 border rounded bg-light">
+                    <h6>Bid Summary:</h6>
+                    <p id="previewBidAmount" class="mb-1"></p>
+                    <p id="previewDiscount" class="mb-1"></p>
+                    <p id="previewMonthlySavings" class="mb-0"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="submitBidBtn">Submit Bid</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editProfileForm">
+                    <div class="mb-3">
+                        <label for="editName" class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" id="editName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPhone" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="editPhone" 
+                               placeholder="Enter your phone number">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAddress" class="form-label">Address</label>
+                        <textarea class="form-control" id="editAddress" rows="3" 
+                                  placeholder="Enter your address"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmergencyContact" class="form-label">Emergency Contact</label>
+                        <input type="text" class="form-control" id="editEmergencyContact" 
+                               placeholder="Name and phone number">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveProfileBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
