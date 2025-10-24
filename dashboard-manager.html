@@ -16,19 +16,17 @@
                 <i class="fas fa-hand-holding-usd me-2"></i>
                 ChitFund Pro
             </a>
-           <div class="navbar-nav ms-auto">
-    <div class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-            <i class="fas fa-user-tie me-1"></i>
-            <span id="userName">Manager</span>
-        </a>
-        <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="#" id="profileBtn"><i class="fas fa-user-circle me-2"></i>My Profile</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="#" id="logoutBtn"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
-        </ul>
-    </div>
-</div>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-tie me-1"></i>
+                        <span id="userName">Manager</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </nav>
 
@@ -38,7 +36,7 @@
             <div class="col-12">
                 <div class="dashboard-header">
                     <h1><i class="fas fa-user-tie me-2"></i>Manager Dashboard</h1>
-                    <p>Manage your chit funds and members efficiently</p>
+                    <p>Manage your village chit funds easily</p>
                 </div>
             </div>
         </div>
@@ -84,8 +82,8 @@
                         <i class="fas fa-trophy"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="auctionsThisMonth">0</h3>
-                        <p>Auctions This Month</p>
+                        <h3 id="auctionsDone">0</h3>
+                        <p>Auctions Done</p>
                     </div>
                 </div>
             </div>
@@ -101,11 +99,8 @@
                     <button class="btn btn-success me-2 mb-2" id="addMemberBtn">
                         <i class="fas fa-user-plus me-2"></i>Add Member
                     </button>
-                    <button class="btn btn-warning me-2 mb-2" id="manageAuctionsBtn">
-                        <i class="fas fa-gavel me-2"></i>Manage Auctions
-                    </button>
-                    <button class="btn btn-info me-2 mb-2" id="viewReportsBtn">
-                        <i class="fas fa-chart-bar me-2"></i>View Reports
+                    <button class="btn btn-warning me-2 mb-2" id="recordAuctionBtn">
+                        <i class="fas fa-gavel me-2"></i>Record Auction
                     </button>
                 </div>
             </div>
@@ -126,11 +121,6 @@
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="auctions-tab" data-bs-toggle="tab" data-bs-target="#auctions" type="button">
-                            <i class="fas fa-gavel me-2"></i>Auctions
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
                         <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button">
                             <i class="fas fa-rupee-sign me-2"></i>Payments
                         </button>
@@ -141,7 +131,7 @@
                     <!-- Chits Tab -->
                     <div class="tab-pane fade show active" id="chits" role="tabpanel">
                         <div class="tab-header">
-                            <h3>Chit Funds Management</h3>
+                            <h3>Chit Funds</h3>
                             <button class="btn btn-primary" id="addChitBtn">
                                 <i class="fas fa-plus me-2"></i>Create Chit Fund
                             </button>
@@ -154,7 +144,7 @@
                     <!-- Members Tab -->
                     <div class="tab-pane fade" id="members" role="tabpanel">
                         <div class="tab-header">
-                            <h3>Members Management</h3>
+                            <h3>Members</h3>
                             <button class="btn btn-success" id="addNewMemberBtn">
                                 <i class="fas fa-user-plus me-2"></i>Add New Member
                             </button>
@@ -164,23 +154,10 @@
                         </div>
                     </div>
 
-                    <!-- Auctions Tab -->
-                    <div class="tab-pane fade" id="auctions" role="tabpanel">
-                        <div class="tab-header">
-                            <h3>Auctions Management</h3>
-                            <button class="btn btn-warning" id="scheduleAuctionBtn">
-                                <i class="fas fa-calendar-plus me-2"></i>Schedule Auction
-                            </button>
-                        </div>
-                        <div id="auctionsList" class="auctions-list">
-                            <!-- Auctions will be loaded here -->
-                        </div>
-                    </div>
-
                     <!-- Payments Tab -->
                     <div class="tab-pane fade" id="payments" role="tabpanel">
                         <div class="tab-header">
-                            <h3>Payments Tracking</h3>
+                            <h3>Payment Tracking</h3>
                             <button class="btn btn-info" id="recordPaymentBtn">
                                 <i class="fas fa-money-bill-wave me-2"></i>Record Payment
                             </button>
@@ -196,7 +173,7 @@
 
     <!-- Create Chit Fund Modal -->
     <div class="modal fade" id="createChitModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Create New Chit Fund</h5>
@@ -204,44 +181,22 @@
                 </div>
                 <div class="modal-body">
                     <form id="createChitForm">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="chitName" class="form-label">Chit Name *</label>
-                                <input type="text" class="form-control" id="chitName" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="chitCode" class="form-label">Unique Chit Code *</label>
-                                <input type="text" class="form-control" id="chitCode" required>
-                                <small class="form-text text-muted">Members will use this code to join</small>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="totalAmount" class="form-label">Total Chit Amount *</label>
-                                <input type="number" class="form-control" id="totalAmount" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="duration" class="form-label">Duration (Months) *</label>
-                                <input type="number" class="form-control" id="duration" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="monthlyAmount" class="form-label">Monthly Amount *</label>
-                                <input type="number" class="form-control" id="monthlyAmount" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="startDate" class="form-label">Start Date *</label>
-                                <input type="date" class="form-control" id="startDate" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="maxMembers" class="form-label">Maximum Members *</label>
-                                <input type="number" class="form-control" id="maxMembers" required>
-                            </div>
+                        <div class="mb-3">
+                            <label for="chitName" class="form-label">Chit Name *</label>
+                            <input type="text" class="form-control" id="chitName" placeholder="e.g., 1 Lakh Chit - 2024" required>
                         </div>
                         <div class="mb-3">
-                            <label for="chitDescription" class="form-label">Description</label>
-                            <textarea class="form-control" id="chitDescription" rows="3"></textarea>
+                            <label for="totalAmount" class="form-label">Total Chit Amount *</label>
+                            <input type="number" class="form-control" id="totalAmount" placeholder="e.g., 100000" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="duration" class="form-label">Duration (Months) *</label>
+                            <input type="number" class="form-control" id="duration" placeholder="e.g., 20" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Monthly Amount per Member</label>
+                            <div class="form-control" id="monthlyAmountDisplay">₹0</div>
+                            <small class="form-text text-muted">Auto-calculated: Total Amount ÷ Duration</small>
                         </div>
                     </form>
                 </div>
@@ -268,16 +223,8 @@
                             <input type="text" class="form-control" id="memberName" required>
                         </div>
                         <div class="mb-3">
-                            <label for="memberEmail" class="form-label">Email Address *</label>
-                            <input type="email" class="form-control" id="memberEmail" required>
-                        </div>
-                        <div class="mb-3">
                             <label for="memberPhone" class="form-label">Phone Number *</label>
                             <input type="tel" class="form-control" id="memberPhone" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="memberAddress" class="form-label">Address</label>
-                            <textarea class="form-control" id="memberAddress" rows="2"></textarea>
                         </div>
                     </form>
                 </div>
@@ -289,407 +236,91 @@
         </div>
     </div>
 
- <!-- Enhanced View Chit Details Modal -->
-<div class="modal fade" id="viewChitModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Chit Fund Details & Members</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Chit Fund Information</h6>
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label class="form-label fw-bold">Chit Name</label>
-                                <p id="viewChitName" class="form-control-plaintext">-</p>
-                            </div>
-                            <div class="col-12 mb-3">
-                                <label class="form-label fw-bold">Chit Code</label>
-                                <p id="viewChitCode" class="form-control-plaintext">-</p>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Total Amount</label>
-                                <p id="viewTotalAmount" class="form-control-plaintext">-</p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Monthly Amount</label>
-                                <p id="viewMonthlyAmount" class="form-control-plaintext">-</p>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Duration</label>
-                                <p id="viewDuration" class="form-control-plaintext">-</p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Max Members</label>
-                                <p id="viewMaxMembers" class="form-control-plaintext">-</p>
-                            </div>
-                        </div>
+    <!-- Record Auction Modal -->
+    <div class="modal fade" id="recordAuctionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Record Auction</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="recordAuctionForm">
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Current Progress</label>
-                            <div class="progress mb-2" style="height: 10px;">
-                                <div id="viewProgressBar" class="progress-bar" style="width: 0%"></div>
-                            </div>
-                            <p id="viewProgressText" class="small text-muted">-</p>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6>Members (<span id="membersCount">0</span>/<span id="maxMembersCount">0</span>)</h6>
-                            <button class="btn btn-sm btn-outline-primary" id="refreshMembersBtn">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                        <div id="membersList" class="members-list" style="max-height: 400px; overflow-y: auto;">
-                            <!-- Members will be loaded here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="viewChitEditBtn">Edit Chit Fund</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Chit Fund Modal -->
-<div class="modal fade" id="editChitModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Chit Fund</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editChitForm">
-                    <input type="hidden" id="editChitId">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="editChitName" class="form-label">Chit Name *</label>
-                            <input type="text" class="form-control" id="editChitName" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="editChitCode" class="form-label">Chit Code *</label>
-                            <input type="text" class="form-control" id="editChitCode" required readonly>
-                            <small class="form-text text-muted">Chit code cannot be changed</small>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="editTotalAmount" class="form-label">Total Amount *</label>
-                            <input type="number" class="form-control" id="editTotalAmount" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="editDuration" class="form-label">Duration (Months) *</label>
-                            <input type="number" class="form-control" id="editDuration" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="editMonthlyAmount" class="form-label">Monthly Amount *</label>
-                            <input type="number" class="form-control" id="editMonthlyAmount" required>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="editStartDate" class="form-label">Start Date *</label>
-                            <input type="date" class="form-control" id="editStartDate" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="editMaxMembers" class="form-label">Maximum Members *</label>
-                            <input type="number" class="form-control" id="editMaxMembers" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="editDescription" rows="3"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Status</label>
-                        <select class="form-select" id="editStatus">
-                            <option value="active">Active</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="updateChitBtn">Update Chit Fund</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-    <!-- Profile Modal -->
-<div class="modal fade" id="profileModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-user-circle me-2"></i>My Profile</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-4 text-center">
-                        <div class="profile-avatar mb-3">
-                            <i class="fas fa-user-tie fa-5x text-primary"></i>
-                        </div>
-                        <h4 id="profileName">Manager Name</h4>
-                        <p class="text-muted" id="profileRole">Manager</p>
-                        <button class="btn btn-outline-primary btn-sm mt-2" id="editProfileBtn">
-                            <i class="fas fa-edit me-1"></i>Edit Profile
-                        </button>
-                    </div>
-                    <div class="col-md-8">
-                        <div class="profile-info">
-                            <h5 class="border-bottom pb-2">Personal Information</h5>
-                            <div class="info-item">
-                                <label>Email:</label>
-                                <span id="profileEmail">-</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Phone:</label>
-                                <span id="profilePhone">-</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Address:</label>
-                                <span id="profileAddress">-</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Member Since:</label>
-                                <span id="profileJoinDate">-</span>
-                            </div>
-                        </div>
-                        
-                        <div class="profile-stats mt-4">
-                            <h5 class="border-bottom pb-2">Manager Statistics</h5>
-                            <div class="stat-item">
-                                <label>Total Chits Created:</label>
-                                <span id="profileTotalChits">0</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Active Members:</label>
-                                <span id="profileActiveMembers">0</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Total Collection:</label>
-                                <span id="profileTotalCollection">₹0</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Completed Auctions:</label>
-                                <span id="profileCompletedAuctions">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Profile Modal -->
-<div class="modal fade" id="editProfileModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Profile</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editProfileForm">
-                    <div class="mb-3">
-                        <label for="editProfileName" class="form-label">Full Name *</label>
-                        <input type="text" class="form-control" id="editProfileName" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editProfileEmail" class="form-label">Email Address *</label>
-                        <input type="email" class="form-control" id="editProfileEmail" required readonly>
-                        <small class="form-text text-muted">Email cannot be changed</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editProfilePhone" class="form-label">Phone Number</label>
-                        <input type="tel" class="form-control" id="editProfilePhone">
-                    </div>
-                    <div class="mb-3">
-                        <label for="editProfileAddress" class="form-label">Address</label>
-                        <textarea class="form-control" id="editProfileAddress" rows="3"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="updateProfileBtn">Update Profile</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Schedule Auction Modal -->
-<div class="modal fade" id="scheduleAuctionModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Schedule New Auction</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="scheduleAuctionForm">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
                             <label for="auctionChit" class="form-label">Select Chit Fund *</label>
                             <select class="form-select" id="auctionChit" required>
                                 <option value="">Choose a chit fund...</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="auctionDate" class="form-label">Auction Date *</label>
-                            <input type="datetime-local" class="form-control" id="auctionDate" required>
+                        <div class="mb-3">
+                            <label for="auctionMember" class="form-label">Select Member *</label>
+                            <select class="form-select" id="auctionMember" required>
+                                <option value="">Choose a member...</option>
+                            </select>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="auctionLocation" class="form-label">Location</label>
-                            <input type="text" class="form-control" id="auctionLocation" placeholder="Physical or virtual location">
+                        <div class="mb-3">
+                            <label for="auctionMonth" class="form-label">Auction Month *</label>
+                            <input type="number" class="form-control" id="auctionMonth" min="1" required>
+                            <small class="form-text text-muted">Which month of the chit fund (1-20)</small>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="auctionMinBid" class="form-label">Minimum Bid Percentage</label>
-                            <input type="number" class="form-control" id="auctionMinBid" min="1" max="100" value="30">
-                            <small class="form-text text-muted">Minimum bid as percentage of total amount</small>
+                        <div class="mb-3">
+                            <label for="auctionAmount" class="form-label">Amount Taken *</label>
+                            <input type="number" class="form-control" id="auctionAmount" required>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="auctionNotes" class="form-label">Additional Notes</label>
-                        <textarea class="form-control" id="auctionNotes" rows="3" placeholder="Any special instructions or notes..."></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveAuctionBtn">Schedule Auction</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Record Payment Modal -->
-<div class="modal fade" id="recordPaymentModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Record Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="recordPaymentForm">
-                    <div class="mb-3">
-                        <label for="paymentMember" class="form-label">Select Member *</label>
-                        <select class="form-select" id="paymentMember" required>
-                            <option value="">Choose a member...</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="paymentChit" class="form-label">Select Chit Fund *</label>
-                        <select class="form-select" id="paymentChit" required>
-                            <option value="">Choose a chit fund...</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="paymentAmount" class="form-label">Amount *</label>
-                        <input type="number" class="form-control" id="paymentAmount" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="paymentDate" class="form-label">Payment Date *</label>
-                        <input type="date" class="form-control" id="paymentDate" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="paymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-select" id="paymentMethod">
-                            <option value="cash">Cash</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="upi">UPI</option>
-                            <option value="cheque">Cheque</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="paymentNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="paymentNotes" rows="2" placeholder="Any additional notes..."></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="savePaymentBtn">Record Payment</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- View Reports Modal -->
-<div class="modal fade" id="viewReportsModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Reports & Analytics</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <ul class="nav nav-tabs" id="reportsTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="financial-tab" data-bs-toggle="tab" data-bs-target="#financial" type="button">
-                            Financial Summary
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="members-tab" data-bs-toggle="tab" data-bs-target="#members-report" type="button">
-                            Members Report
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="chits-tab" data-bs-toggle="tab" data-bs-target="#chits-report" type="button">
-                            Chits Report
-                        </button>
-                    </li>
-                </ul>
-                
-                <div class="tab-content p-3" id="reportsTabContent">
-                    <div class="tab-pane fade show active" id="financial" role="tabpanel">
-                        <div class="row" id="financialReports">
-                            <!-- Financial reports will be loaded here -->
-                        </div>
-                    </div>
-                    <div class="tab-pane fade" id="members-report" role="tabpanel">
-                        <div id="membersReport">
-                            <!-- Members report will be loaded here -->
-                        </div>
-                    </div>
-                    <div class="tab-pane fade" id="chits-report" role="tabpanel">
-                        <div id="chitsReport">
-                            <!-- Chits report will be loaded here -->
-                        </div>
+                    </form>
+                    <div id="auctionPreview" class="chit-preview d-none mt-3 p-3 border rounded">
+                        <h6>Auction Summary:</h6>
+                        <p id="previewMonthlyAmount" class="mb-1"></p>
+                        <p id="previewDiscount" class="mb-0 text-success"></p>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-success" id="exportReportsBtn">
-                    <i class="fas fa-download me-2"></i>Export Reports
-                </button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" id="saveAuctionBtn">Record Auction</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Record Payment Modal -->
+    <div class="modal fade" id="recordPaymentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Record Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="recordPaymentForm">
+                        <div class="mb-3">
+                            <label for="paymentMember" class="form-label">Select Member *</label>
+                            <select class="form-select" id="paymentMember" required>
+                                <option value="">Choose a member...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="paymentChit" class="form-label">Select Chit Fund *</label>
+                            <select class="form-select" id="paymentChit" required>
+                                <option value="">Choose a chit fund...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="paymentMonth" class="form-label">Payment Month *</label>
+                            <input type="number" class="form-control" id="paymentMonth" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="paymentAmount" class="form-label">Amount Paid *</label>
+                            <input type="number" class="form-control" id="paymentAmount" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="savePaymentBtn">Record Payment</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
