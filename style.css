@@ -445,3 +445,428 @@ body {
     from { opacity: 0; transform: translateX(50px); }
     to { opacity: 1; transform: translateX(0); }
 }
+
+/* Manager and Member Specific Styles */
+
+/* Tab Styles */
+.nav-tabs {
+    border-bottom: 2px solid var(--gray-light);
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    color: var(--gray);
+    font-weight: 500;
+    padding: 1rem 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    border: none;
+    color: var(--accent);
+}
+
+.nav-tabs .nav-link.active {
+    background: none;
+    border: none;
+    border-bottom: 3px solid var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.tab-header h3 {
+    color: var(--dark);
+    margin: 0;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Chit List Styles */
+.chit-list {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.chit-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--accent);
+}
+
+.chit-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.chit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.chit-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin: 0;
+}
+
+.chit-code {
+    color: var(--gray);
+    font-size: 0.9rem;
+    margin: 0.25rem 0 0 0;
+}
+
+.chit-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.chit-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.detail-item label {
+    font-weight: 500;
+    color: var(--gray);
+    margin: 0;
+}
+
+.detail-item span {
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.chit-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gray-light);
+}
+
+.chit-date {
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+/* Members List Styles */
+.members-list {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.member-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.member-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.member-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.member-avatar {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dark);
+    font-size: 1.25rem;
+}
+
+.member-info {
+    flex: 1;
+}
+
+.member-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin: 0 0 0.25rem 0;
+}
+
+.member-contact {
+    color: var(--gray);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.member-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--light);
+    border-radius: 10px;
+}
+
+.member-stats .stat {
+    text-align: center;
+}
+
+.member-stats .stat label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--gray);
+    margin-bottom: 0.25rem;
+}
+
+.member-stats .stat span {
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.member-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+/* Payment Styles */
+.payment-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.summary-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.summary-card i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.summary-card span {
+    display: block;
+    font-weight: 500;
+}
+
+.payments-history {
+    display: grid;
+    gap: 1rem;
+}
+
+.payment-item {
+    background: white;
+    padding: 1.25rem;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid var(--success);
+}
+
+.payment-item .payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.payment-chit {
+    font-weight: 600;
+    color: var(--dark);
+    margin: 0;
+}
+
+.payment-amount {
+    text-align: right;
+}
+
+.payment-details {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: var(--gray);
+}
+
+/* Profile Styles */
+.profile-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.profile-info, .profile-stats {
+    padding: 1rem 0;
+}
+
+.profile-info h5, .profile-stats h5 {
+    color: var(--dark);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary);
+}
+
+.info-item, .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.info-item:last-child, .stat-item:last-child {
+    border-bottom: none;
+}
+
+.info-item label, .stat-item label {
+    font-weight: 500;
+    color: var(--gray);
+    margin: 0;
+}
+
+.info-item span, .stat-item span {
+    font-weight: 600;
+    color: var(--dark);
+}
+
+/* Chit Preview */
+.chit-preview {
+    background: var(--light);
+    border-left: 4px solid var(--accent) !important;
+}
+
+.chit-preview h6 {
+    color: var(--dark);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.chit-preview p {
+    margin: 0;
+    color: var(--gray);
+}
+
+/* Status Badges */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .nav-tabs .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .tab-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .chit-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .chit-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .chit-details-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .detail-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .member-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .member-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .payment-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .payment-details {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .action-buttons {
+        justify-content: center;
+    }
+}
+
+/* Animation for new items */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chit-item, .member-item, .payment-item {
+    animation: slideInUp 0.5s ease-out;
+}
+
