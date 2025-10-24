@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
       // New event listeners
     document.getElementById('profileBtn')?.addEventListener('click', showProfile);
     document.getElementById('editProfileBtn')?.addEventListener('click', showEditProfile);
@@ -21,10 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Tab buttons
     document.getElementById('addChitBtn')?.addEventListener('click', () => createChitModal.show());
     document.getElementById('addNewMemberBtn')?.addEventListener('click', () => addMemberModal.show());
-});
-
-    const auth = firebase.auth();
-    const db = firebase.firestore();
 
     // DOM Elements
     const userNameElement = document.getElementById('userName');
