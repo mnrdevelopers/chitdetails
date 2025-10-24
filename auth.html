@@ -26,6 +26,21 @@
             </div>
         </div>
 
+        <!-- Registration Progress -->
+        <div class="registration-progress d-none" id="registrationProgress">
+            <div class="progress-steps">
+                <div class="progress-step">
+                    <div class="step-indicator" id="step1Indicator">1</div>
+                    <div class="step-label" id="step1Label">Details</div>
+                </div>
+                <div class="progress-connector" id="step1Connector"></div>
+                <div class="progress-step">
+                    <div class="step-indicator" id="step2Indicator">2</div>
+                    <div class="step-label" id="step2Label">Role</div>
+                </div>
+            </div>
+        </div>
+
         <div class="auth-card-container">
             <!-- Login Form -->
             <div id="loginForm" class="auth-card active">
@@ -142,7 +157,7 @@
                     </div>
                     
                     <button type="submit" class="btn btn-primary btn-auth">
-                        <span class="btn-text">Create Account</span>
+                        <span class="btn-text">Continue to Role Selection</span>
                         <div class="btn-loader d-none">
                             <div class="spinner-border spinner-border-sm" role="status">
                                 <span class="visually-hidden">Loading...</span>
@@ -172,52 +187,59 @@
                 
                 <div id="registerMessage" class="alert-message d-none"></div>
             </div>
-        </div>
 
-        <!-- Add this section in auth.html after the register form -->
-<div id="roleSelectionForm" class="auth-form">
-    <div class="auth-header">
-        <h2>Choose Your Role</h2>
-        <p>How will you be using ChitFund Pro?</p>
-    </div>
-    
-    <div class="role-selection">
-        <div class="role-card" data-role="manager">
-            <div class="role-icon">
-                <i class="fas fa-user-tie"></i>
+            <!-- Role Selection Form -->
+            <div id="roleSelectionForm" class="auth-card">
+                <div class="card-header">
+                    <h2>Choose Your Role</h2>
+                    <p>How will you be using ChitFund Pro?</p>
+                </div>
+                
+                <div class="role-selection">
+                    <div class="role-card" data-role="manager">
+                        <div class="role-icon">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <h4>Chit Fund Manager</h4>
+                        <p>Create and manage chit funds, add members, conduct auctions</p>
+                        <ul class="role-features">
+                            <li><i class="fas fa-check"></i> Create multiple chit funds</li>
+                            <li><i class="fas fa-check"></i> Manage members & payments</li>
+                            <li><i class="fas fa-check"></i> Conduct auctions</li>
+                            <li><i class="fas fa-check"></i> Generate reports</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="role-card" data-role="member">
+                        <div class="role-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <h4>Chit Fund Member</h4>
+                        <p>Join chit funds, make payments, participate in auctions</p>
+                        <ul class="role-features">
+                            <li><i class="fas fa-check"></i> Join chit funds with codes</li>
+                            <li><i class="fas fa-check"></i> Track payments & history</li>
+                            <li><i class="fas fa-check"></i> Participate in auctions</li>
+                            <li><i class="fas fa-check"></i> View investment progress</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="role-footer">
+                    <p>You can change this later in your profile settings</p>
+                    <button class="btn btn-primary btn-auth" id="confirmRoleBtn" disabled>
+                        <span class="btn-text">Confirm Role & Continue</span>
+                        <div class="btn-loader d-none">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div id="roleSelectionMessage" class="alert-message d-none"></div>
             </div>
-            <h4>Chit Fund Manager</h4>
-            <p>Create and manage chit funds, add members, conduct auctions</p>
-            <ul class="role-features">
-                <li><i class="fas fa-check"></i> Create multiple chit funds</li>
-                <li><i class="fas fa-check"></i> Manage members & payments</li>
-                <li><i class="fas fa-check"></i> Conduct auctions</li>
-                <li><i class="fas fa-check"></i> Generate reports</li>
-            </ul>
         </div>
-        
-        <div class="role-card" data-role="member">
-            <div class="role-icon">
-                <i class="fas fa-user"></i>
-            </div>
-            <h4>Chit Fund Member</h4>
-            <p>Join chit funds, make payments, participate in auctions</p>
-            <ul class="role-features">
-                <li><i class="fas fa-check"></i> Join chit funds with codes</li>
-                <li><i class="fas fa-check"></i> Track payments & history</li>
-                <li><i class="fas fa-check"></i> Participate in auctions</li>
-                <li><i class="fas fa-check"></i> View investment progress</li>
-            </ul>
-        </div>
-    </div>
-    
-    <div class="role-footer">
-        <p>You can change this later in your profile settings</p>
-        <button class="btn btn-primary btn-auth" id="confirmRoleBtn" disabled>
-            Confirm Role & Continue
-        </button>
-    </div>
-</div>
 
         <!-- Security Badge -->
         <div class="security-badge">
