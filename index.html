@@ -3,59 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChitFund - Login</title>
+    <title>Chit Fund Manager - Login</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK -->
+    <script type="module" src="app.js"></script>
 </head>
 <body>
     <div class="container">
         <header class="app-header">
-            <h1>ChitFund</h1>
+            <h1>Chit Fund Manager</h1>
             <p>Manage your village chit funds with ease</p>
         </header>
 
         <main class="auth-container">
-            <div class="auth-tabs">
-                <button class="tab-btn active" id="login-tab">Login</button>
-                <button class="tab-btn" id="signup-tab">Sign Up</button>
-            </div>
-
-            <div class="auth-form-container">
-                <!-- Login Form -->
-                <form id="login-form" class="auth-form active">
+            <div class="auth-card">
+                <h2 id="auth-title">Login</h2>
+                
+                <form id="auth-form">
                     <div class="form-group">
-                        <label for="login-email">Email</label>
-                        <input type="email" id="login-email" required>
+                        <label for="email">Email</label>
+                        <input type="email" id="email" required>
                     </div>
+                    
                     <div class="form-group">
-                        <label for="login-password">Password</label>
-                        <input type="password" id="login-password" required>
+                        <label for="password">Password</label>
+                        <input type="password" id="password" required>
                     </div>
-                    <button type="submit" class="btn-primary">Login</button>
+                    
+                    <button type="submit" id="auth-button" class="btn-primary">Login</button>
                 </form>
-
-                <!-- Signup Form -->
-                <form id="signup-form" class="auth-form">
-                    <div class="form-group">
-                        <label for="signup-name">Full Name</label>
-                        <input type="text" id="signup-name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="signup-email">Email</label>
-                        <input type="email" id="signup-email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="signup-password">Password</label>
-                        <input type="password" id="signup-password" minlength="6" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Sign Up</button>
-                </form>
+                
+                <div class="auth-switch">
+                    <p id="auth-switch-text">Don't have an account? <a href="#" id="auth-switch-link">Sign Up</a></p>
+                </div>
+                
+                <div id="auth-message" class="message"></div>
             </div>
-
-            <div id="auth-message" class="message"></div>
         </main>
     </div>
-
-    <script type="module" src="firebase-config.js"></script>
-    <script type="module" src="app.js"></script>
 </body>
 </html>
