@@ -291,50 +291,82 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    // Update dashboard statistics
-    async function updateStats() {
+  // Update dashboard statistics
+async function updateStats() {
+    try {
+        // Count members with error handling
+        let membersCount = 0;
         try {
-            // Count members
             const membersSnapshot = await db.collection('members')
                 .where('managerId', '==', currentUser.uid)
                 .get();
-            totalMembersElement.textContent = membersSnapshot.size;
+            membersCount = membersSnapshot.size;
+        } catch (error) {
+            console.warn('Error counting members:', error);
+            membersCount = 0;
+        }
+        totalMembersElement.textContent = membersCount;
 
-            // Count active chits
+        // Count active chits with error handling
+        let activeChitsCount = 0;
+        let totalCollection = 0;
+        try {
             const chitsSnapshot = await db.collection('chits')
                 .where('managerId', '==', currentUser.uid)
                 .where('status', '==', 'active')
                 .get();
-            activeChitsElement.textContent = chitsSnapshot.size;
-
+            
+            activeChitsCount = chitsSnapshot.size;
+            
             // Calculate total monthly collection
-            let totalCollection = 0;
             chitsSnapshot.forEach(doc => {
                 const chit = doc.data();
                 totalCollection += (chit.monthlyAmount || 0) * (chit.currentMembers || 0);
             });
-            totalCollectionElement.textContent = `₹${totalCollection.toLocaleString()}`;
+        } catch (error) {
+            console.warn('Error counting chits:', error);
+            activeChitsCount = 0;
+            totalCollection = 0;
+        }
+        
+        activeChitsElement.textContent = activeChitsCount;
+        totalCollectionElement.textContent = `₹${totalCollection.toLocaleString()}`;
 
-            // Count auctions this month
+        // Count auctions this month with error handling
+        let auctionsThisMonth = 0;
+        try {
             const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
             const auctionsSnapshot = await db.collection('auctions')
                 .where('managerId', '==', currentUser.uid)
                 .get();
             
-            let auctionsThisMonth = 0;
             auctionsSnapshot.forEach(doc => {
                 const auction = doc.data();
-                const auctionMonth = auction.auctionDate?.toDate().getMonth();
-                if (auctionMonth === currentMonth) {
-                    auctionsThisMonth++;
+                if (auction.auctionDate) {
+                    const auctionDate = auction.auctionDate.toDate();
+                    if (auctionDate.getMonth() === currentMonth && 
+                        auctionDate.getFullYear() === currentYear) {
+                        auctionsThisMonth++;
+                    }
                 }
             });
-            auctionsThisMonthElement.textContent = auctionsThisMonth;
-
         } catch (error) {
-            console.error('Error updating stats:', error);
+            console.warn('Error counting auctions:', error);
+            auctionsThisMonth = 0;
         }
+        auctionsThisMonthElement.textContent = auctionsThisMonth;
+
+    } catch (error) {
+        console.error('Error updating stats:', error);
+        // Set default values on error
+        totalMembersElement.textContent = '0';
+        activeChitsElement.textContent = '0';
+        totalCollectionElement.textContent = '₹0';
+        auctionsThisMonthElement.textContent = '0';
     }
+}
 
     // Calculate chit progress
     function calculateChitProgress(chit) {
