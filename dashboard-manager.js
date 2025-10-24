@@ -101,18 +101,32 @@ async function loadUserData() {
     }
 }
 
-    // Check and set manager role
-    async function checkManagerRole() {
-        try {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            if (userDoc.exists && userDoc.data().role !== 'manager') {
+ // Check and set manager role - ENHANCED VERSION
+async function checkManagerRole() {
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            
+            if (!userData.role) {
+                // User hasn't selected a role - redirect to auth page for role selection
+                window.location.href = 'auth.html';
+                return;
+            }
+            
+            if (userData.role !== 'manager') {
                 // Redirect members to member dashboard
                 window.location.href = 'dashboard-member.html';
             }
-        } catch (error) {
-            console.error('Error checking role:', error);
+        } else {
+            // User document doesn't exist - redirect to complete registration
+            window.location.href = 'auth.html';
         }
+    } catch (error) {
+        console.error('Error checking role:', error);
+        window.location.href = 'auth.html';
     }
+}
 
     // Load dashboard data
     async function loadDashboardData() {
