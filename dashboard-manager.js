@@ -1,13 +1,17 @@
 // Wait for DOM and Firebase to be loaded
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Manager dashboard loading...');
+    
     if (typeof firebase === 'undefined' || !firebase.auth) {
-        console.error('Firebase not loaded');
-        window.location.href = 'auth.html';
+        console.error('Firebase not loaded properly');
+        showError('Firebase not loaded. Please refresh the page.');
         return;
     }
 
     const auth = firebase.auth();
     const db = firebase.firestore();
+    
+    console.log('Firebase services initialized');
 
     // Global variables
     let currentUser = null;
