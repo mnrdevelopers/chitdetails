@@ -671,7 +671,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load members with CRUD operations (FIXED: Only show members associated with *any* of the manager's chits)
    async function loadMembers() {
     try {
-        // 1. Get IDs of all members currently managed by the manager (who have joined a chit managed by them)
+        // 1. Get IDs of all members who have joined *any* chit managed by the current user
         const membershipsSnapshot = await db.collection('chitMemberships')
             .where('managerId', '==', currentUser.uid)
             .get();
@@ -732,8 +732,17 @@ document.addEventListener('DOMContentLoaded', function() {
             await Promise.all(syncPromises);
         }
 
-        // 3. Filter final list to only those in the manager's member map
-        const finalMembers = Array.from(memberDetailsMap.values());
+        // 3. Filter final list to include ONLY those who are manually added OR have an active chit.
+        const allMembers = Array.from(memberDetailsMap.values());
+        const finalMembers = allMembers.filter(member => {
+            // Include manually added members (who haven't joined a chit yet)
+            const isManuallyAdded = member.managerId === currentUser.uid && !managedMemberIds.has(member.id);
+            // Include members who have joined at least one chit managed by this user
+            const hasJoinedAChit = managedMemberIds.has(member.id);
+
+            return isManuallyAdded || hasJoinedAChit;
+        });
+
 
         membersList.innerHTML = '';
 
@@ -1812,7 +1821,7 @@ async function deletePayment(paymentId) {
             // Later auctions get lower monthly payments
             const reductionPercentage = Math.min((month - 1) * 5, 40); // Max 40% reduction
             const reducedMonthlyAmount = baseMonthlyAmount * (1 - reductionPercentage / 100);
-            const discount = baseMonthlyAmount - reducedMonthlyAmount;
+            const discount = baseMonthlyAmount - reducedMonthlyMonthlyAmount;
 
             const preview = document.getElementById('auctionPreview');
             const previewMonthlyAmount = document.getElementById('previewMonthlyAmount');
