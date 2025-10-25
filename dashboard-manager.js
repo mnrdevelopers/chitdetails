@@ -27,6 +27,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const recordAuctionBtn = document.getElementById('recordAuctionBtn'); // Keep the element reference
     const recordPaymentBtn = document.getElementById('recordPaymentBtn');
     const logoutBtn = document.getElementById('logoutBtn');
+    const myProfileNavBtn = document.getElementById('myProfileNavBtn'); // NEW NAV BAR LINK
+    const saveProfileBtn = document.getElementById('saveProfileBtn'); // NEW MODAL BUTTON
+
+    // Profile Modal Inputs (NEW)
+    const editProfileNameInput = document.getElementById('editProfileName');
+    const editProfilePhoneInput = document.getElementById('editProfilePhone');
+    const editProfileEmailInput = document.getElementById('editProfileEmail');
+    const editProfileRoleInput = document.getElementById('editProfileRole');
+    
 
     // Modal instances
     const createChitModal = new bootstrap.Modal(document.getElementById('createChitModal'));
@@ -34,6 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const recordAuctionModal = new bootstrap.Modal(document.getElementById('recordAuctionModal'));
     const recordPaymentModal = new bootstrap.Modal(document.getElementById('recordPaymentModal'));
     const editChitModal = new bootstrap.Modal(document.getElementById('editChitModal'));
+    const editProfileModal = new bootstrap.Modal(document.getElementById('editProfileModal')); // NEW
 
     let currentUser = null;
     let userData = null;
@@ -73,12 +83,75 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('addChitBtn')?.addEventListener('click', () => createChitModal.show());
         document.getElementById('addNewMemberBtn')?.addEventListener('click', () => addMemberModal.show());
         
+        // Profile events (NEW)
+        myProfileNavBtn?.addEventListener('click', showEditProfileModal); 
+        saveProfileBtn?.addEventListener('click', updateProfile); 
+        
         // Modal button events
         document.getElementById('saveChitBtn')?.addEventListener('click', createChitFund);
         document.getElementById('saveMemberBtn')?.addEventListener('click', addMember);
         document.getElementById('saveAuctionBtn')?.addEventListener('click', recordAuction);
         document.getElementById('savePaymentBtn')?.addEventListener('click', recordPayment);
         document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFund);
+    }
+    
+    // NEW: Show Edit Profile Modal
+    function showEditProfileModal() {
+        if (!userData) {
+            alert('User data not loaded. Please try again.');
+            return;
+        }
+        
+        // Populate modal inputs
+        editProfileNameInput.value = userData.name || '';
+        editProfilePhoneInput.value = userData.phone || '';
+        editProfileEmailInput.value = userData.email || currentUser.email || '';
+        editProfileRoleInput.value = (userData.role || 'Manager').charAt(0).toUpperCase() + (userData.role || 'Manager').slice(1);
+        
+        editProfileModal.show();
+    }
+    
+    // NEW: Update Profile Function
+    async function updateProfile() {
+        const name = editProfileNameInput.value.trim();
+        const phone = editProfilePhoneInput.value.trim();
+        
+        if (!name) {
+            alert('Full Name is required.');
+            return;
+        }
+        
+        try {
+            setLoading(saveProfileBtn, true, 'Save Changes');
+            
+            const updateData = {
+                name: name,
+                phone: phone,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            // 1. Update the main user document
+            await db.collection('users').doc(currentUser.uid).update(updateData);
+            
+            // 2. Update the manager's member document (if it exists)
+            const managerMemberDoc = await db.collection('members').doc(currentUser.uid).get();
+            if (managerMemberDoc.exists) {
+                await db.collection('members').doc(currentUser.uid).update(updateData);
+            }
+            
+            // 3. Reload data and UI
+            await loadUserData(); // Refresh local userData object
+            updateUI(); // Refresh UI elements
+            
+            editProfileModal.hide();
+            showSuccess('Profile updated successfully!');
+            
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            alert('Error updating profile: ' + error.message);
+        } finally {
+            setLoading(saveProfileBtn, false, 'Save Changes');
+        }
     }
 
     // Generate chit code automatically from chit name
@@ -1867,14 +1940,22 @@ async function deletePayment(paymentId) {
     // Update UI
     function updateUI() {
         if (userData) {
+            // Navigation name
             userNameElement.textContent = userData.name || 'Manager';
-            // Also update the Monthly Collection label to be more accurate
+            
+            // Stats label
             document.querySelector('#totalCollection').parentElement.querySelector('p').textContent = 'Total Revenue';
+            
+            // Populate Profile Modal fields
+            if(editProfileNameInput) editProfileNameInput.value = userData.name || '';
+            if(editProfilePhoneInput) editProfilePhoneInput.value = userData.phone || '';
+            if(editProfileEmailInput) editProfileEmailInput.value = userData.email || currentUser.email || '';
+            if(editProfileRoleInput) editProfileRoleInput.value = (userData.role || 'Manager').charAt(0).toUpperCase() + (userData.role || 'Manager').slice(1);
         }
     }
 
     // Set loading state
-    function setLoading(button, isLoading, type = 'primary') {
+    function setLoading(button, isLoading, originalText) {
         if (!button) return;
         
         if (isLoading) {
@@ -1882,21 +1963,19 @@ async function deletePayment(paymentId) {
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
         } else {
             button.disabled = false;
-            if (button.id === 'saveChitBtn') {
-                button.innerHTML = 'Create Chit Fund';
-            } else if (button.id === 'saveMemberBtn') {
-                button.innerHTML = 'Add Member';
-            } else if (button.id === 'saveAuctionBtn') {
-                button.innerHTML = 'Record Auction';
-            } else if (button.id === 'savePaymentBtn') {
-                button.innerHTML = 'Record Payment';
-            } else if (button.id === 'updateChitBtn') {
-                button.innerHTML = 'Update Chit Fund';
-            } else if (button.id === 'updateMemberBtn') {
-                button.innerHTML = 'Update Member';
-            } else if (button.id === 'confirmAddMemberBtn') {
-                 button.innerHTML = 'Add Member';
-            }
+            // Restore original text based on button ID, or use originalText if provided
+            const restoreText = originalText || {
+                'saveChitBtn': 'Create Chit Fund',
+                'saveMemberBtn': 'Add Member',
+                'saveAuctionBtn': 'Record Auction',
+                'savePaymentBtn': 'Record Payment',
+                'updateChitBtn': 'Update Chit Fund',
+                'updateMemberBtn': 'Update Member',
+                'confirmAddMemberBtn': 'Add Member',
+                'saveProfileBtn': 'Save Changes'
+            }[button.id] || 'Button'; 
+            
+            button.innerHTML = restoreText;
         }
     }
 
