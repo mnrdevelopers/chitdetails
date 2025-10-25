@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const createChitBtn = document.getElementById('createChitBtn');
     const addMemberBtn = document.getElementById('addMemberBtn');
-    const recordAuctionBtn = document.getElementById('recordAuctionBtn');
+    const recordAuctionBtn = document.getElementById('recordAuctionBtn'); // Keep the element reference
     const recordPaymentBtn = document.getElementById('recordPaymentBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
@@ -196,6 +196,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const progress = calculateChitProgress(chit);
         const chitElement = document.createElement('div');
         chitElement.className = 'chit-item';
+
+        // Determine icon and type label
+        const chitType = chit.chitType || 'auction';
+        const typeLabel = chitType === 'friendship' ? 'Friendship (Fixed Payout)' : 'Auction (Bidding)';
+        const typeIcon = chitType === 'friendship' ? 'fas fa-handshake' : 'fas fa-gavel';
+        
         chitElement.innerHTML = `
             <div class="chit-header">
                 <div>
@@ -203,6 +209,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p class="chit-code">Code: <strong>${chit.chitCode}</strong></p>
                 </div>
                 <div class="chit-actions">
+                    <span class="badge bg-info me-2">
+                        <i class="${typeIcon} me-1"></i>${typeLabel}
+                    </span>
                     <span class="badge ${chit.status === 'active' ? 'bg-success' : 'bg-secondary'}">
                         ${chit.status}
                     </span>
@@ -274,6 +283,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const chit = chitDoc.data();
+        const chitType = chit.chitType || 'auction';
+        const typeLabel = chitType === 'friendship' ? 'Friendship (Fixed Payout)' : 'Auction (Bidding)';
         
         // Load actual members for this chit
         const membershipsSnapshot = await db.collection('chitMemberships')
@@ -293,6 +304,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="col-md-6">
                                     <h6>Chit Information</h6>
                                     <div class="detail-card">
+                                        <div class="detail-item">
+                                            <label>Type:</label>
+                                            <span><strong>${typeLabel}</strong></span>
+                                        </div>
                                         <div class="detail-item">
                                             <label>Chit Code:</label>
                                             <span><strong>${chit.chitCode}</strong></span>
@@ -429,6 +444,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Populate edit form
             document.getElementById('editChitId').value = chitId;
+            document.getElementById('editChitType').value = chit.chitType || 'auction'; // New field
             document.getElementById('editChitName').value = chit.name;
             document.getElementById('editChitCode').value = chit.chitCode;
             document.getElementById('editTotalAmount').value = chit.totalAmount;
@@ -455,6 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update chit fund
     async function updateChitFund() {
         const chitId = document.getElementById('editChitId').value;
+        const chitType = document.getElementById('editChitType').value; // New field
         const name = document.getElementById('editChitName').value;
         const totalAmount = parseFloat(document.getElementById('editTotalAmount').value);
         const duration = parseInt(document.getElementById('editDuration').value);
@@ -462,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const startDate = document.getElementById('editStartDate').value;
         const status = document.getElementById('editStatus').value;
 
-        if (!name || !totalAmount || !duration || !monthlyAmount || !startDate) {
+        if (!name || !totalAmount || !duration || !monthlyAmount || !startDate || !chitType) {
             alert('Please fill all required fields');
             return;
         }
@@ -471,6 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setLoading(document.getElementById('updateChitBtn'), true);
 
             const updateData = {
+                chitType: chitType, // New field
                 name: name,
                 totalAmount: totalAmount,
                 duration: duration,
@@ -557,7 +575,53 @@ document.addEventListener('DOMContentLoaded', function() {
         const allMembers = [];
         membersList.innerHTML = '';
 
-        if (memberIds.size === 0) {
+        // Add manually added members who might not be in a chit yet
+        const membersSnapshot = await db.collection('members')
+            .where('managerId', '==', currentUser.uid)
+            .get();
+        membersSnapshot.forEach(doc => {
+            allMembers.push({ id: doc.id, ...doc.data() });
+            memberIds.add(doc.id); // Add their ID to the set to ensure we don't try to create a duplicate
+        });
+
+
+        // 2. Fetch or create a managed 'member' document for each unique memberId found in memberships
+        const fetchPromises = Array.from(memberIds).map(async memberId => {
+            // Check if member is already in our loaded list from step 1
+            if (allMembers.some(m => m.id === memberId)) {
+                return;
+            }
+
+            let memberDoc = await db.collection('members').doc(memberId).get();
+
+            if (!memberDoc.exists) {
+                // This is a self-registered user who joined a chit. Create their member record under this manager.
+                const userDoc = await db.collection('users').doc(memberId).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    const newMemberData = {
+                        name: userData.name || userData.email,
+                        phone: userData.phone || 'N/A (Registered User)',
+                        managerId: currentUser.uid,
+                        activeChits: 0, // This will be calculated later or updated by membership logic
+                        totalPaid: 0,
+                        status: 'active',
+                        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    // Create the member document using the user's UID as the ID
+                    await db.collection('members').doc(memberId).set(newMemberData);
+                    allMembers.push({ id: memberId, ...newMemberData });
+                }
+            } else {
+                 // Already handled by step 1, but this catch ensures we still load the data if logic changes
+                 allMembers.push({ id: memberDoc.id, ...memberDoc.data() });
+            }
+        });
+        await Promise.all(fetchPromises);
+
+
+        // 3. Render all consolidated members
+        if (allMembers.length === 0) {
             membersList.innerHTML = `
                 <div class="text-center py-5">
                     <i class="fas fa-users fa-3x text-muted mb-3"></i>
@@ -565,53 +629,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p class="text-muted">Add members or have them join a chit fund to see them here.</p>
                 </div>
             `;
-            // Manually added members might still exist even without a membership
-            const membersSnapshot = await db.collection('members')
-                .where('managerId', '==', currentUser.uid)
-                .get();
-                
-            if (membersSnapshot.empty) {
-                 return; // Really no members at all
-            }
-            membersSnapshot.forEach(doc => {
-                allMembers.push({ id: doc.id, ...doc.data() });
-            });
-            // If we only have manually added members who haven't joined a chit, render them.
         } else {
-            // 2. Fetch or create a managed 'member' document for each unique memberId found in memberships
-            const fetchPromises = Array.from(memberIds).map(async memberId => {
-                let memberDoc = await db.collection('members').doc(memberId).get();
+            membersList.innerHTML = '';
+            // Remove duplicates created by the complex fetch logic if any
+            const uniqueMembers = Array.from(new Map(allMembers.map(item => [item.id, item])).values());
 
-                if (!memberDoc.exists) {
-                    // This is a self-registered user who joined a chit. Create their member record under this manager.
-                    const userDoc = await db.collection('users').doc(memberId).get();
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
-                        const newMemberData = {
-                            name: userData.name || userData.email,
-                            phone: userData.phone || 'N/A (Registered User)',
-                            managerId: currentUser.uid,
-                            activeChits: 1, // Assume 1 for simplicity when first seen
-                            totalPaid: 0,
-                            status: 'active',
-                            joinedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        };
-                        // Create the member document using the user's UID as the ID
-                        await db.collection('members').doc(memberId).set(newMemberData);
-                        allMembers.push({ id: memberId, ...newMemberData });
-                    }
-                } else {
-                    // Member already exists (manually added or previously synchronized)
-                    allMembers.push({ id: memberDoc.id, ...memberDoc.data() });
-                }
-            });
-            await Promise.all(fetchPromises);
-        }
-
-        // 3. Render all consolidated members
-        if (allMembers.length > 0) {
-            membersList.innerHTML = ''; // Clear the 'No Members' message if populated
-            allMembers.forEach(member => {
+            uniqueMembers.forEach(member => {
                 renderMember(member);
             });
         }
@@ -1406,6 +1429,12 @@ async function deletePayment(paymentId) {
                 .get();
             auctionsDoneElement.textContent = auctionsSnapshot.size;
 
+            // Check if Auction button should be enabled/disabled
+            const hasAuctionChits = chitsSnapshot.docs.some(doc => (doc.data().chitType || 'auction') === 'auction');
+            recordAuctionBtn.disabled = !hasAuctionChits;
+            recordAuctionBtn.title = hasAuctionChits ? 'Record Auction' : 'Requires at least one active Auction Chit Fund.';
+
+
         } catch (error) {
             console.error('Error updating stats:', error);
         }
@@ -1446,6 +1475,11 @@ async function deletePayment(paymentId) {
     });
 
     recordAuctionBtn.addEventListener('click', async () => {
+        if (recordAuctionBtn.disabled) {
+             // Use a custom modal or show a temporary alert in the dashboard instead of native alert
+             showSuccess("Cannot record auction. Please create an active 'Auction' Chit Fund first.", 'warning');
+             return;
+        }
         await showRecordAuctionModal();
     });
 
@@ -1464,12 +1498,13 @@ async function deletePayment(paymentId) {
 
     // Create chit fund
     async function createChitFund() {
+        const chitType = document.getElementById('chitType').value; // New field
         const name = document.getElementById('chitName').value;
         const chitCode = document.getElementById('chitCode').value;
         const totalAmount = parseFloat(document.getElementById('totalAmount').value);
         const duration = parseInt(document.getElementById('duration').value);
 
-        if (!name || !chitCode || !totalAmount || !duration) {
+        if (!name || !chitCode || !totalAmount || !duration || !chitType) {
             alert('Please fill all required fields');
             return;
         }
@@ -1490,6 +1525,7 @@ async function deletePayment(paymentId) {
             }
 
             const chitData = {
+                chitType: chitType, // New field
                 name: name,
                 chitCode: chitCode,
                 totalAmount: totalAmount,
@@ -1575,11 +1611,17 @@ async function deletePayment(paymentId) {
     // Show record auction modal
     async function showRecordAuctionModal() {
         try {
-            // Load chits and members for dropdowns
+            // Load chits and members for dropdowns - FILTER to ONLY auction chits
             const [chitsSnapshot, membersSnapshot] = await Promise.all([
-                db.collection('chits').where('managerId', '==', currentUser.uid).where('status', '==', 'active').get(),
+                db.collection('chits').where('managerId', '==', currentUser.uid).where('status', '==', 'active').where('chitType', '==', 'auction').get(),
                 db.collection('members').where('managerId', '==', currentUser.uid).get()
             ]);
+            
+            if (chitsSnapshot.empty) {
+                alert("No active 'Auction' type chits found. Cannot record auction.");
+                return;
+            }
+
 
             const auctionChitSelect = document.getElementById('auctionChit');
             const auctionMemberSelect = document.getElementById('auctionMember');
@@ -1690,13 +1732,6 @@ async function deletePayment(paymentId) {
             };
 
             await db.collection('auctions').add(auctionData);
-
-            // Note: activeChits count is now updated in confirmAddMemberToChit function
-            // We should only update activeChits if the member is not already in the chit, 
-            // but for a simple ledger like this, let's assume this auction means the member
-            // won a prize, not that they are necessarily newly active. 
-            // The membership is tracked via the chitMemberships collection. 
-            // If the member is registered, their activeChits should reflect that.
 
             document.getElementById('recordAuctionForm').reset();
             recordAuctionModal.hide();
@@ -1839,7 +1874,7 @@ async function deletePayment(paymentId) {
     }
 
     // Set loading state
-    function setLoading(button, isLoading) {
+    function setLoading(button, isLoading, type = 'primary') {
         if (!button) return;
         
         if (isLoading) {
@@ -1865,13 +1900,13 @@ async function deletePayment(paymentId) {
         }
     }
 
-    // Show success message
-    function showSuccess(message) {
+    // Show success message (Used for temporary notifications)
+    function showSuccess(message, type = 'success') {
         const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
         alertDiv.style.zIndex = '9999';
         alertDiv.innerHTML = `
-            <i class="fas fa-check-circle me-2"></i>
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
@@ -2119,14 +2154,6 @@ async function removeMemberFromChit(membershipId, chitId) {
         const bsViewModal = bootstrap.Modal.getInstance(viewModal);
         if (bsViewModal) bsViewModal.hide();
         
-        // Must reload members list and stats
-        const membersList = document.getElementById('membersList');
-        if (membersList) {
-            // Re-call the main dashboard functions if needed, or just reload the view modal
-            // Reloading the view modal is done in the next line.
-        }
-
-        await viewChitDetails(chitId);
         // Important: Update the overall member list and stats after removal
         await loadMembers(); 
         await updateStats(); 
