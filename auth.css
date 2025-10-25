@@ -151,7 +151,8 @@ body {
 /* Auth Card */
 .auth-card-container {
     position: relative;
-    height: 520px;
+    /* Increased height to comfortably fit role selection + footer */
+    height: 600px; 
 }
 
 .auth-card {
@@ -617,22 +618,40 @@ body {
 
 /* Role Selection Styles */
 .role-selection {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Use flexbox for better vertical control */
+    display: flex;
+    flex-direction: column; 
     gap: 1.5rem;
     margin: 2rem 0;
+    flex: 1; /* Allow it to take up available vertical space */
 }
+
+/* Apply grid only on larger screens */
+@media (min-width: 480px) {
+    .role-selection {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem; /* Reduced gap slightly for compact view */
+        flex-direction: row;
+    }
+}
+
 
 .role-card {
     background: var(--white);
     border: 2px solid var(--gray-light);
     border-radius: 15px;
-    padding: 2rem;
+    padding: 1.5rem; /* Reduced padding slightly */
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    /* Fixed height for uniformity, adjusted for smaller padding */
+    height: 320px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .role-card::before {
@@ -667,29 +686,31 @@ body {
 }
 
 .role-icon {
-    width: 80px;
-    height: 80px;
+    width: 60px; /* Reduced icon size */
+    height: 60px;
     background: var(--gray-light);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1.5rem;
-    font-size: 2rem;
+    margin: 0 auto 1rem; /* Reduced margin */
+    font-size: 1.5rem; /* Reduced font size */
     color: var(--gray);
     transition: all 0.3s ease;
 }
 
 .role-card h4 {
     color: var(--dark);
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem; /* Reduced margin */
     font-weight: 600;
+    font-size: 1.1rem; /* Reduced font size */
 }
 
 .role-card p {
     color: var(--gray);
-    margin-bottom: 1.5rem;
-    line-height: 1.5;
+    margin-bottom: 1rem; /* Reduced margin */
+    line-height: 1.4;
+    font-size: 0.9rem;
 }
 
 .role-features {
@@ -697,6 +718,7 @@ body {
     padding: 0;
     margin: 0;
     text-align: left;
+    margin-top: auto; /* Push features list to the bottom */
 }
 
 .role-features li {
@@ -705,7 +727,7 @@ body {
     gap: 0.5rem;
     margin-bottom: 0.5rem;
     color: var(--gray);
-    font-size: 0.9rem;
+    font-size: 0.85rem; /* Reduced font size */
 }
 
 .role-features li i {
@@ -715,12 +737,12 @@ body {
 
 .role-footer {
     text-align: center;
-    margin-top: 2rem;
+    margin-top: 1rem; /* Reduced margin */
 }
 
 .role-footer p {
     color: var(--gray);
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem; /* Reduced margin */
     font-size: 0.9rem;
 }
 
@@ -801,5 +823,22 @@ body {
     
     .progress-connector {
         width: 30px;
+    }
+    
+    .auth-card-container {
+        /* Adjusted height for mobile to prevent cutoff */
+        height: auto; 
+        min-height: 500px;
+    }
+    
+    .auth-card {
+        position: relative;
+        min-height: 500px;
+        height: auto;
+    }
+
+    .role-card {
+        height: auto; /* Allow cards to resize dynamically */
+        min-height: 280px;
     }
 }
