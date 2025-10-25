@@ -849,8 +849,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p class="member-contact">
                         <i class="fas fa-phone me-1"></i>${member.phone || 'Not provided'}
                     </p>
-                    <!-- Display Member UID for easy identification -->
-                    <small class="text-muted text-break">UID: ${member.id}</small> 
+                    <!-- Member UID display removed for security -->
                 </div>
             </div>
             <div class="member-stats">
@@ -1188,7 +1187,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const chitId = doc.data().chitId;
                 
                 // Decrement currentMembers count on the chit document
-                deletePromises.push(db.collection('chits').doc(chitId).update({
+                updatePromises.push(db.collection('chits').doc(chitId).update({
                     currentMembers: firebase.firestore.FieldValue.increment(-1)
                 }));
                 
