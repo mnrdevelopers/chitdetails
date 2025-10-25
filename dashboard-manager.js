@@ -662,18 +662,22 @@ document.addEventListener('DOMContentLoaded', function() {
             // For now, if they are self-registered and not managed yet, add them.
             if (!finalMembersMap.has(member.id)) {
                 
-                // Create a record in the 'members' collection for the manager to track them
+                // --- FIX APPLIED HERE ---
+                // We create the memberRecord object by picking only the fields we want, 
+                // avoiding setting 'id: undefined' explicitly.
                 const memberRecord = {
-                    ...member,
+                    name: member.name,
+                    phone: member.phone,
+                    joinedAt: member.joinedAt,
+                    activeChits: member.activeChits,
+                    totalPaid: member.totalPaid,
+                    status: member.status,
                     managerId: currentUser.uid,
-                    // Remove redundant fields
-                    id: undefined,
-                    email: undefined,
                 };
                 
                 // Use member.id (which is user.uid) as the document ID
                 syncPromises.push(db.collection('members').doc(member.id).set(memberRecord, { merge: true }));
-                finalMembersMap.set(member.id, { ...member, managerId: currentUser.uid });
+                finalMembersMap.set(member.id, { ...memberRecord, id: member.id }); // Add to map for rendering
             }
         });
         
