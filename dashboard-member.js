@@ -79,7 +79,8 @@ document.addEventListener('DOMContentLoaded', function() {
         logoutBtn.addEventListener('click', async () => {
             try {
                 await auth.signOut();
-                window.location.href = 'auth.html';
+                // FIX: Redirect to index.html (main page) instead of auth.html
+                window.location.href = 'index.html'; 
             } catch (error) {
                 console.error('Logout error:', error);
             }
