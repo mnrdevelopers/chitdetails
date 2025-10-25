@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
         managePayoutsBtn?.addEventListener('click', () => showManagePayoutsModal(chit.id));
     }
 
-    // View chit details
+    // View chit details - FIXED TO INCLUDE PAYOUT TRACKING SECTION
    async function viewChitDetails(chitId) {
     try {
         const chitDoc = await db.collection('chits').doc(chitId).get();
@@ -304,15 +304,108 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const chit = chitDoc.data();
         const isFriendshipChit = chit.chitType === 'friendship';
+        const totalAmount = chit.totalAmount;
         
-        // Load actual members for this chit
+        // --- DATA FETCHING FOR PAYOUT TRACKING ---
+        let payoutRecipients = [];
+        const memberDetailsMap = new Map();
+        
+        // 1. Get all memberships to build a list of all members (for display later)
         const membershipsSnapshot = await db.collection('chitMemberships')
             .where('chitId', '==', chitId)
             .get();
 
-        let membersHTML = `
+        const memberIds = membershipsSnapshot.docs.map(doc => doc.data().memberId);
+        
+        // Pre-fetch all member details (users/members collection)
+        const memberDetailsPromises = memberIds.map(async (memberId) => {
+            let memberData = { name: 'Unknown Member', phone: 'Not available' };
+            try {
+                const memberDoc = await db.collection('members').doc(memberId).get();
+                if (memberDoc.exists) {
+                    memberData = memberDoc.data();
+                } else {
+                    const userDoc = await db.collection('users').doc(memberId).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        memberData = { name: userData.name || userData.email, phone: userData.phone || 'Not provided' };
+                    }
+                }
+            } catch (error) {
+                console.warn('Error loading member details:', error);
+            }
+            memberDetailsMap.set(memberId, memberData);
+        });
+        await Promise.all(memberDetailsPromises);
+
+
+        // 2. Determine Payout Recipients (Who lifted the full amount)
+        if (isFriendshipChit) {
+            // FRIENDSHIP CHIT: Use the fixed payout order
+            const payoutDoc = await db.collection('payoutOrders').doc(chitId).get();
+            const order = payoutDoc.exists ? payoutDoc.data().order : [];
+            
+            payoutRecipients = order.map(item => ({
+                memberId: item.memberId,
+                name: memberDetailsMap.get(item.memberId)?.name || 'Unknown Member',
+                month: item.month,
+                status: (item.month <= calculateChitProgress(chit).monthsPassed) ? 'Received' : 'Upcoming'
+            }));
+
+        } else {
+            // AUCTION CHIT: Use the auction records
+            const auctionsSnapshot = await db.collection('auctions')
+                .where('chitId', '==', chitId)
+                .get();
+
+            // Use a Map to ensure only one auction entry per member is counted for payout
+            const receivedMap = new Map(); 
+            auctionsSnapshot.forEach(doc => {
+                const auction = doc.data();
+                if (!receivedMap.has(auction.memberId)) { // Assuming the *first* auction entry signifies lifting the fund
+                    receivedMap.set(auction.memberId, {
+                        memberId: auction.memberId,
+                        name: memberDetailsMap.get(auction.memberId)?.name || 'Unknown Member',
+                        month: auction.month,
+                        amount: auction.amountTaken,
+                        status: 'Received'
+                    });
+                }
+            });
+            payoutRecipients = Array.from(receivedMap.values());
+        }
+
+        // --- RENDERING ---
+        
+        let payoutListHTML = '';
+        if (payoutRecipients.length > 0) {
+            payoutListHTML = `
+                <ul class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+            `;
+            payoutRecipients.forEach(p => {
+                const statusBadge = p.status === 'Received' ? 'bg-success' : 'bg-secondary';
+                const amountText = p.amount ? `₹${p.amount.toLocaleString()}` : `₹${totalAmount.toLocaleString()}`;
+
+                payoutListHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${p.name}</strong> 
+                            <small class="text-muted">(${p.month ? `Month ${p.month}` : 'Auction'})</small>
+                        </div>
+                        <span class="badge ${statusBadge}">${p.status}</span>
+                    </li>
+                `;
+            });
+            payoutListHTML += `</ul>`;
+        } else {
+             payoutListHTML = `<p class="text-muted">No payouts recorded yet or no payout order set.</p>`;
+        }
+
+
+        // Start rendering the modal structure
+        let modalContent = `
             <div class="modal fade" id="viewChitModal" tabindex="-1">
-                <div class="modal-dialog modal-lg">
+                <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">Chit Details - ${chit.name}</h5>
@@ -320,46 +413,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="modal-body">
                             <div class="row">
-                                <div class="col-md-6">
+                                
+                                <!-- Column 1: Chit Info -->
+                                <div class="col-md-4 mb-4">
                                     <h6>Chit Information</h6>
                                     <div class="detail-card">
-                                        <div class="detail-item">
-                                            <label>Chit Type:</label>
-                                            <span><strong>${isFriendshipChit ? 'Friendship' : 'Auction'}</strong></span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <label>Chit Code:</label>
-                                            <span><strong>${chit.chitCode}</strong></span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <label>Total Amount:</label>
-                                            <span>₹${chit.totalAmount?.toLocaleString()}</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <label>Monthly Amount:</label>
-                                            <span>₹${chit.monthlyAmount?.toLocaleString()}</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <label>Duration:</label>
-                                            <span>${chit.duration} months</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <label>Start Date:</label>
-                                            <span>${chit.startDate}</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <label>Status:</label>
-                                            <span class="badge ${chit.status === 'active' ? 'bg-success' : 'bg-secondary'}">${chit.status}</span>
-                                        </div>
+                                        <div class="detail-item"><label>Chit Type:</label><span><strong>${isFriendshipChit ? 'Friendship' : 'Auction'}</strong></span></div>
+                                        <div class="detail-item"><label>Chit Code:</label><span><strong>${chit.chitCode}</strong></span></div>
+                                        <div class="detail-item"><label>Total Amount:</label><span>₹${chit.totalAmount?.toLocaleString()}</span></div>
+                                        <div class="detail-item"><label>Monthly Amount:</label><span>₹${chit.monthlyAmount?.toLocaleString()}</span></div>
+                                        <div class="detail-item"><label>Duration:</label><span>${chit.duration} months</span></div>
+                                        <div class="detail-item"><label>Start Date:</label><span>${chit.startDate}</span></div>
+                                        <div class="detail-item"><label>Status:</label><span class="badge ${chit.status === 'active' ? 'bg-success' : 'bg-secondary'}">${chit.status}</span></div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6>Members (${membershipsSnapshot.size})</h6>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="addMemberToChit('${chitId}')">
-                                            <i class="fas fa-plus me-1"></i>Add Member
-                                        </button>
-                                    </div>
+                                
+                                <!-- Column 2: Payout Recipients (NEW SECTION) -->
+                                <div class="col-md-4 mb-4">
+                                    <h6>Payout Recipients (Total: ₹${totalAmount.toLocaleString()})</h6>
                                     ${isFriendshipChit ? `
                                         <div class="d-grid mb-3">
                                             <button class="btn btn-info btn-sm" onclick="window.showManagePayoutsModal('${chitId}')">
@@ -367,60 +438,43 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </button>
                                         </div>
                                     ` : ''}
-                                    <div class="members-list" style="max-height: 300px; overflow-y: auto;">
+                                    <div class="detail-card p-0">
+                                        ${payoutListHTML}
+                                    </div>
+                                </div>
+
+
+                                <!-- Column 3: Members -->
+                                <div class="col-md-4 mb-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6>Members (${membershipsSnapshot.size})</h6>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="addMemberToChit('${chitId}')">
+                                            <i class="fas fa-plus me-1"></i>Add Member
+                                        </button>
+                                    </div>
+                                    <div class="members-list detail-card p-0" style="max-height: 300px; overflow-y: auto;">
+                                        
         `;
 
         if (membershipsSnapshot.empty) {
-            membersHTML += `
+            modalContent += `
                 <div class="text-center py-4">
                     <i class="fas fa-users fa-2x text-muted mb-2"></i>
                     <p class="text-muted">No members joined yet</p>
                 </div>
             `;
         } else {
-            // Pre-fetch all member details for efficiency
-            const memberIds = membershipsSnapshot.docs.map(doc => doc.data().memberId);
-            const memberDetailsMap = new Map();
-            
-            const membersDetailsPromises = memberIds.map(async (memberId) => {
-                let memberData = { name: 'Unknown Member', phone: 'Not available' };
-                try {
-                    const memberDoc = await db.collection('members').doc(memberId).get();
-                    if (memberDoc.exists) {
-                        memberData = memberDoc.data();
-                    } else {
-                        const userDoc = await db.collection('users').doc(memberId).get();
-                        if (userDoc.exists) {
-                            const userData = userDoc.data();
-                            memberData = { name: userData.name || userData.email, phone: userData.phone || 'Not provided' };
-                        }
-                    }
-                } catch (error) {
-                    console.warn('Error loading member details:', error);
-                }
-                memberDetailsMap.set(memberId, memberData);
-            });
-            await Promise.all(membersDetailsPromises);
-
-
-            for (const doc of membershipsSnapshot.docs) {
+            membershipsSnapshot.docs.forEach(doc => {
                 const membership = doc.data();
                 const memberData = memberDetailsMap.get(membership.memberId);
                 const memberName = memberData?.name || 'Unknown Member';
                 const memberPhone = memberData?.phone || 'Not provided';
                 
-                membersHTML += `
-                    <div class="member-item">
-                        <div class="member-header">
-                            <div class="member-avatar">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            <div class="member-info">
-                                <h6 class="member-name">${memberName}</h6>
-                                <small class="text-muted">${memberPhone}</small>
-                                <br>
-                                <small class="text-muted">Joined: ${membership.joinedAt ? new Date(membership.joinedAt.seconds * 1000).toLocaleDateString() : 'Recently'}</small>
-                            </div>
+                modalContent += `
+                    <div class="member-item d-flex justify-content-between align-items-center p-3 border-bottom">
+                        <div class="member-info">
+                            <h6 class="member-name mb-0">${memberName}</h6>
+                            <small class="text-muted">${memberPhone}</small>
                         </div>
                         <div class="member-actions">
                             <button class="btn btn-sm btn-outline-danger" onclick="removeMemberFromChit('${doc.id}', '${chitId}', '${membership.memberId}')">
@@ -429,10 +483,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 `;
-            }
+            });
         }
 
-        membersHTML += `
+        modalContent += `
                                     </div>
                                 </div>
                             </div>
@@ -452,7 +506,7 @@ document.addEventListener('DOMContentLoaded', function() {
             existingModal.remove();
         }
 
-        document.body.insertAdjacentHTML('beforeend', membersHTML);
+        document.body.insertAdjacentHTML('beforeend', modalContent);
         const viewModal = new bootstrap.Modal(document.getElementById('viewChitModal'));
         viewModal.show();
 
@@ -614,91 +668,88 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Load members with CRUD operations (Improved to handle self-registered users)
+    // Load members with CRUD operations (FIXED: Only show members associated with *any* of the manager's chits)
    async function loadMembers() {
     try {
-        // 1. Load all self-registered members (role: 'member')
-        const usersSnapshot = await db.collection('users').where('role', '==', 'member').get();
-        const memberUserIds = new Set();
-        const memberDataToSync = [];
-        
-        usersSnapshot.forEach(doc => {
-            const user = doc.data();
-            const memberId = doc.id;
-            memberUserIds.add(memberId);
-            memberDataToSync.push({
-                id: memberId,
-                name: user.name || user.email,
-                email: user.email,
-                phone: user.phone || 'Not provided',
-                joinedAt: user.createdAt,
-                // These stats are usually calculated and stored in the 'members' collection
-                activeChits: user.activeChits || 0,
-                totalPaid: user.totalPaid || 0,
-                status: 'active'
-            });
+        // 1. Get IDs of all members currently managed by the manager (who have joined a chit managed by them)
+        const membershipsSnapshot = await db.collection('chitMemberships')
+            .where('managerId', '==', currentUser.uid)
+            .get();
+            
+        const managedMemberIds = new Set();
+        membershipsSnapshot.forEach(doc => {
+            managedMemberIds.add(doc.data().memberId);
         });
 
-        // 2. Load members manually created by this manager (if any)
-        const membersSnapshot = await db.collection('members')
+        // 2. Load records for the members who have actually joined a chit
+        const memberDetailsMap = new Map();
+        const memberPromises = [];
+
+        // Manually added members are already tracked in 'members' collection
+        const manuallyAddedMembersSnapshot = await db.collection('members')
             .where('managerId', '==', currentUser.uid)
             .get();
 
-        // Map to hold final member data, keyed by member ID
-        const finalMembersMap = new Map();
-
-        // Prioritize manually created member data (as manager may have updated info)
-        membersSnapshot.forEach(doc => {
+        manuallyAddedMembersSnapshot.forEach(doc => {
             const member = { id: doc.id, ...doc.data() };
-            finalMembersMap.set(member.id, member);
+            // Include members added by manager, regardless of whether they've joined a chit yet
+            memberDetailsMap.set(member.id, member);
         });
         
-        // Add self-registered users who are not already in the manager's member list
-        const syncPromises = [];
-        memberDataToSync.forEach(member => {
-            // Check if user is associated with any of the manager's chits
-            // This is a simplified check. A proper check would be to see if they are in 'chitMemberships'
-            
-            // For now, if they are self-registered and not managed yet, add them.
-            if (!finalMembersMap.has(member.id)) {
-                
-                // --- FIX APPLIED HERE ---
-                // We create the memberRecord object by picking only the fields we want, 
-                // avoiding setting 'id: undefined' explicitly.
-                const memberRecord = {
-                    name: member.name,
-                    phone: member.phone,
-                    joinedAt: member.joinedAt,
-                    activeChits: member.activeChits,
-                    totalPaid: member.totalPaid,
-                    status: member.status,
-                    managerId: currentUser.uid,
-                };
-                
-                // Use member.id (which is user.uid) as the document ID
-                syncPromises.push(db.collection('members').doc(member.id).set(memberRecord, { merge: true }));
-                finalMembersMap.set(member.id, { ...memberRecord, id: member.id }); // Add to map for rendering
+        // Load self-registered users who have memberships but whose detailed records might only be in 'users'
+        // This sync logic is crucial for ensuring stats are correct for self-registered users.
+        if (managedMemberIds.size > 0) {
+            for (const memberId of managedMemberIds) {
+                if (!memberDetailsMap.has(memberId)) {
+                    memberPromises.push(db.collection('users').doc(memberId).get());
+                }
             }
-        });
-        
-        // Wait for all synchronization writes to complete
-        await Promise.all(syncPromises);
+            
+            const userDocs = await Promise.all(memberPromises);
+            
+            const syncPromises = [];
+            userDocs.forEach(userDoc => {
+                if (userDoc.exists) {
+                    const user = userDoc.data();
+                    const memberId = userDoc.id;
+                    
+                    // Create the managed member record if it doesn't exist yet
+                    const memberRecord = {
+                        name: user.name || user.email,
+                        phone: user.phone || 'Not provided',
+                        joinedAt: user.createdAt,
+                        activeChits: user.activeChits || 0,
+                        totalPaid: user.totalPaid || 0,
+                        status: 'active',
+                        managerId: currentUser.uid,
+                    };
+                    
+                    // Write the managed member record and add to map
+                    syncPromises.push(db.collection('members').doc(memberId).set(memberRecord, { merge: true }));
+                    memberDetailsMap.set(memberId, { ...memberRecord, id: memberId });
+                }
+            });
+            await Promise.all(syncPromises);
+        }
+
+        // 3. Filter final list to only those in the manager's member map
+        const finalMembers = Array.from(memberDetailsMap.values());
 
         membersList.innerHTML = '';
 
-        if (finalMembersMap.size === 0) {
+        if (finalMembers.length === 0) {
             membersList.innerHTML = `
                 <div class="text-center py-5">
                     <i class="fas fa-users fa-3x text-muted mb-3"></i>
                     <h5 class="text-muted">No Members Found</h5>
-                    <p class="text-muted">Add members to your chit funds or wait for registered users to join</p>
+                    <p class="text-muted">Manually add a member or wait for a registered user to join a chit fund you manage.</p>
                 </div>
             `;
             return;
         }
 
         // Render all members (sorted by join date)
-        Array.from(finalMembersMap.values())
+        finalMembers
             .sort((a, b) => (b.joinedAt?.seconds || 0) - (a.joinedAt?.seconds || 0))
             .forEach(member => {
             renderMember(member);
@@ -995,64 +1046,79 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Delete member
+    // Delete member - FIXED: Handles all associated documents correctly
     async function deleteMember(memberId) {
-        if (confirm('Are you sure you want to delete this member? This action cannot be undone.')) {
-            try {
-                // Collect promises for batch deletion
-                const deletePromises = [];
-                
-                // 1. Get payments for this member to update member's totalPaid stat (though not strictly necessary as member doc is deleted)
-                // We mainly do this to clean up the 'payments' collection
-                const paymentsSnapshot = await db.collection('payments')
-                    .where('memberId', '==', memberId)
-                    .where('managerId', '==', currentUser.uid)
-                    .get();
+        if (!confirm('Are you sure you want to delete this member? This action cannot be undone.')) {
+            return;
+        }
 
-                paymentsSnapshot.forEach(doc => {
-                    deletePromises.push(db.collection('payments').doc(doc.id).delete());
-                });
+        try {
+            // Check if member has active chits (memberships)
+            const membershipsSnapshot = await db.collection('chitMemberships')
+                .where('memberId', '==', memberId)
+                .get();
 
-                // 2. Get memberships for this member to update chit counts
-                const membershipsSnapshot = await db.collection('chitMemberships')
-                    .where('memberId', '==', memberId)
-                    .get();
-                
-                membershipsSnapshot.forEach(doc => {
-                    const membership = doc.data();
-                    const chitId = membership.chitId;
-                    
-                    // Decrement currentMembers count on the chit document
-                    deletePromises.push(db.collection('chits').doc(chitId).update({
-                        currentMembers: firebase.firestore.FieldValue.increment(-1)
-                    }));
-                    
-                    // Delete the membership document
-                    deletePromises.push(db.collection('chitMemberships').doc(doc.id).delete());
-                });
-
-                // 3. Delete the member document itself (from manager's tracking collection)
-                deletePromises.push(db.collection('members').doc(memberId).delete());
-                
-                // 4. Delete PayoutOrders associated with this member (if any)
-                const payoutsSnapshot = await db.collection('payoutOrders')
-                    .where('memberId', '==', memberId)
-                    .get();
-                payoutsSnapshot.forEach(doc => {
-                    deletePromises.push(db.collection('payoutOrders').doc(doc.id).delete());
-                });
-
-                // Execute all deletions/updates
-                await Promise.all(deletePromises);
-
-                showSuccess('Member and all associated data deleted successfully!');
-                await loadMembers();
-                await updateStats();
-
-            } catch (error) {
-                console.error('Error deleting member:', error);
-                alert('Error deleting member: ' + error.message);
+            if (!membershipsSnapshot.empty) {
+                 if (!confirm(`This member is part of ${membershipsSnapshot.size} chit fund(s). Deleting will remove them from all chits. Continue?`)) {
+                    return;
+                }
             }
+            
+            // Collect promises for batch deletion/update
+            const deletePromises = [];
+            
+            // 1. Delete associated payments
+            const paymentsSnapshot = await db.collection('payments')
+                .where('memberId', '==', memberId)
+                .where('managerId', '==', currentUser.uid)
+                .get();
+            paymentsSnapshot.forEach(doc => {
+                deletePromises.push(db.collection('payments').doc(doc.id).delete());
+            });
+
+            // 2. Delete associated auctions
+            const auctionsSnapshot = await db.collection('auctions')
+                .where('memberId', '==', memberId)
+                .get();
+            auctionsSnapshot.forEach(doc => {
+                deletePromises.push(db.collection('auctions').doc(doc.id).delete());
+            });
+            
+            // 3. Delete associated payouts (Friendship Chits)
+            const payoutsSnapshot = await db.collection('payoutOrders')
+                .where('memberId', '==', memberId)
+                .get();
+            payoutsSnapshot.forEach(doc => {
+                deletePromises.push(db.collection('payoutOrders').doc(doc.id).delete());
+            });
+
+
+            // 4. Update chit counts and delete memberships
+            membershipsSnapshot.forEach(doc => {
+                const chitId = doc.data().chitId;
+                
+                // Decrement currentMembers count on the chit document
+                deletePromises.push(db.collection('chits').doc(chitId).update({
+                    currentMembers: firebase.firestore.FieldValue.increment(-1)
+                }));
+                
+                // Delete the membership document
+                deletePromises.push(db.collection('chitMemberships').doc(doc.id).delete());
+            });
+
+            // 5. Delete the member document itself (from manager's tracking collection)
+            deletePromises.push(db.collection('members').doc(memberId).delete());
+            
+            // Execute all deletions/updates
+            await Promise.all(deletePromises);
+
+            showSuccess('Member and all associated data deleted successfully!');
+            await loadMembers();
+            await updateStats();
+
+        } catch (error) {
+            console.error('Error deleting member:', error);
+            alert('Error deleting member: ' + error.message);
         }
     }
 
@@ -1478,7 +1544,19 @@ async function deletePayment(paymentId) {
             const membersSnapshot = await db.collection('members')
                 .where('managerId', '==', currentUser.uid)
                 .get();
+            
+            // To ensure we count only *active* members who have joined at least one chit, 
+            // we should rely on the membership table, but since loadMembers populates 'members' based on membership, 
+            // we will adjust the count based on activeChits > 0.
+            let activeJoinedMembers = 0;
+            membersSnapshot.forEach(doc => {
+                if (doc.data().activeChits > 0) {
+                    activeJoinedMembers++;
+                }
+            });
+            
             totalMembersElement.textContent = membersSnapshot.size;
+
 
             // Count active chits
             const chitsSnapshot = await db.collection('chits')
@@ -2060,15 +2138,16 @@ async function deletePayment(paymentId) {
                 payoutOrderList.appendChild(listItem);
             });
             
-            // Initialize Sortable.js
-            if (!window.sortableInstance) {
-                window.sortableInstance = new Sortable(payoutOrderList, {
+            // Initialize Sortable.js (Requires adding <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script> to HTML)
+            const sortableElement = document.getElementById('payoutOrderList');
+            if (sortableElement) {
+                 if (window.sortableInstance) {
+                     window.sortableInstance.destroy(); // Destroy previous instance if exists
+                 }
+                 window.sortableInstance = new Sortable(sortableElement, {
                     animation: 150,
                     handle: '.fa-arrows-alt-v'
-                });
-            } else {
-                 // Update the existing instance's element if necessary
-                window.sortableInstance.option('el', payoutOrderList);
+                 });
             }
 
             // Show modal
@@ -2209,6 +2288,7 @@ async function deletePayment(paymentId) {
     };
     
     window.showManagePayoutsModal = showManagePayoutsModal;
+    window.calculateChitProgress = calculateChitProgress; // Expose globally for use in viewChitDetails
 
 });
 
