@@ -98,6 +98,33 @@ document.addEventListener('DOMContentLoaded', function() {
         saveProfileBtn?.addEventListener('click', updateProfile);
         savePayoutOrderBtn?.addEventListener('click', savePayoutOrder);
     }
+    
+    // NEW HELPER: Show or hide loading spinner for content sections
+    function showLoadingState(element, isLoading) {
+        if (!element) return;
+
+        if (isLoading) {
+            // Store original content before clearing it
+            element.dataset.originalContent = element.innerHTML;
+            element.classList.add('position-relative'); // Ensure positioning context for spinner
+
+            // Create and append the spinner overlay
+            element.innerHTML = `
+                <div class="d-flex justify-content-center align-items-center py-5" style="min-height: 200px;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Restore original content (if the element was cleared)
+            if (element.dataset.originalContent !== undefined) {
+                element.classList.remove('position-relative');
+                delete element.dataset.originalContent;
+            }
+        }
+    }
+
 
     // Generate chit code automatically from chit name
     function generateChitCode() {
@@ -173,8 +200,9 @@ document.addEventListener('DOMContentLoaded', function() {
         await updateStats();
     }
 
-    // Load chit funds
+    // Load chit funds - WRAPPED WITH LOADING STATE
     async function loadChitFunds() {
+        showLoadingState(chitFundsList, true);
         try {
             const chitsSnapshot = await db.collection('chits')
                 .where('managerId', '==', currentUser.uid)
@@ -206,6 +234,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     Error loading chit funds: ${error.message}
                 </div>
             `;
+        } finally {
+            showLoadingState(chitFundsList, false);
         }
     }
 
@@ -670,6 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load members with CRUD operations (FIXED: Only show members associated with *any* of the manager's chits)
    async function loadMembers() {
+    showLoadingState(membersList, true);
     try {
         // 1. Get IDs of all members who have joined *any* chit managed by the current user
         const membershipsSnapshot = await db.collection('chitMemberships')
@@ -771,6 +802,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 Error loading members: ${error.message}
             </div>
         `;
+    } finally {
+        showLoadingState(membersList, false);
     }
 }
 
@@ -1133,6 +1166,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load members with CRUD operations (FIXED: Only show members associated with *any* of the manager's chits)
    async function loadMembers() {
+    showLoadingState(membersList, true);
     try {
         // 1. Get IDs of all members who have joined *any* chit managed by the current user
         const membershipsSnapshot = await db.collection('chitMemberships')
@@ -1234,6 +1268,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 Error loading members: ${error.message}
             </div>
         `;
+    } finally {
+        showLoadingState(membersList, false);
     }
 }
 
@@ -1596,6 +1632,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load payments
  async function loadPayments() {
+    showLoadingState(paymentsList, true);
     try {
         const paymentsSnapshot = await db.collection('payments')
             .where('managerId', '==', currentUser.uid)
@@ -1656,6 +1693,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 Error loading payments: ${error.message}
             </div>
         `;
+    } finally {
+        showLoadingState(paymentsList, false);
     }
 }
     
@@ -2011,6 +2050,7 @@ async function deletePayment(paymentId) {
 
     // Update dashboard statistics
     async function updateStats() {
+        // Stats are quick, so no loading animation is strictly necessary, but call is kept simple.
         try {
             // Count members
             const membersSnapshot = await db.collection('members')
