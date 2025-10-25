@@ -72,7 +72,7 @@
                     </div>
                     <div class="stat-info">
                         <h3 id="totalCollection">₹0</h3>
-                        <p>Monthly Collection</p>
+                        <p>Total Revenue</p>
                     </div>
                 </div>
             </div>
@@ -99,7 +99,8 @@
                     <button class="btn btn-success me-2 mb-2" id="addMemberBtn">
                         <i class="fas fa-user-plus me-2"></i>Add Member
                     </button>
-                    <button class="btn btn-warning me-2 mb-2" id="recordAuctionBtn">
+                    <!-- Auction button disabled/removed based on chit type logic, kept for payment record -->
+                    <button class="btn btn-warning me-2 mb-2" id="recordAuctionBtn" title="Only for Auction Chits">
                         <i class="fas fa-gavel me-2"></i>Record Auction
                     </button>
                 </div>
@@ -181,6 +182,16 @@
             </div>
             <div class="modal-body">
                 <form id="createChitForm">
+                    <!-- NEW CHIT TYPE SELECTION -->
+                    <div class="mb-3">
+                        <label for="chitType" class="form-label">Chit Fund Type *</label>
+                        <select class="form-select" id="chitType" required>
+                            <option value="auction">Auction (Traditional Bidding)</option>
+                            <option value="friendship">Friendship (Rotating Fixed Payout)</option>
+                        </select>
+                        <small class="form-text text-muted">Select the payment model for this chit.</small>
+                    </div>
+
                     <div class="mb-3">
                         <label for="chitName" class="form-label">Chit Name *</label>
                         <input type="text" class="form-control" id="chitName" placeholder="e.g., 1 Lakh Chit - 2024" required>
@@ -338,6 +349,13 @@
             <div class="modal-body">
                 <form id="editChitForm">
                     <input type="hidden" id="editChitId">
+                    <div class="mb-3">
+                        <label for="editChitType" class="form-label">Chit Fund Type *</label>
+                        <select class="form-select" id="editChitType" required>
+                            <option value="auction">Auction (Traditional Bidding)</option>
+                            <option value="friendship">Friendship (Rotating Fixed Payout)</option>
+                        </select>
+                    </div>
                     <div class="mb-3">
                         <label for="editChitName" class="form-label">Chit Name *</label>
                         <input type="text" class="form-control" id="editChitName" required>
