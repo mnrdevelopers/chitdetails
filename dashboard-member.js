@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const myChitsCountElement = document.getElementById('myChitsCount');
     const totalPaidElement = document.getElementById('totalPaid');
     const duePaymentsElement = document.getElementById('duePayments');
-    const auctionsWonElement = document.getElementById('auctionsWon');
+    const payoutsReceivedElement = document.getElementById('payoutsReceived'); // Renamed
     
     const myChitsList = document.getElementById('myChitsList');
     const paymentsHistory = document.getElementById('paymentsHistory');
@@ -137,6 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderMyChitFund(chit, membership) {
         const progress = calculateChitProgress(chit);
         
+        // Determine type display
+        const chitType = chit.chitType || 'auction';
+        const typeLabel = chitType === 'friendship' ? 'Friendship (Fixed Payout)' : 'Auction (Bidding)';
+
         const chitElement = document.createElement('div');
         chitElement.className = 'chit-item';
         chitElement.innerHTML = `
@@ -146,6 +150,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p class="chit-amount">Total: ₹${chit.totalAmount?.toLocaleString()}</p>
                 </div>
                 <div class="chit-status-indicator">
+                    <span class="badge bg-info me-2">
+                        ${typeLabel}
+                    </span>
                     <span class="badge ${membership.status === 'approved' ? 'bg-success' : 'bg-warning'}">
                         ${membership.status}
                     </span>
@@ -261,13 +268,14 @@ document.addEventListener('DOMContentLoaded', function() {
             totalPaidElement.textContent = `₹${totalPaid.toLocaleString()}`;
 
             // Count due payments (simplified - next month payment)
+            // This is a rough calculation based on active chits
             duePaymentsElement.textContent = membershipsSnapshot.size;
 
-            // Count auctions won
+            // Count payouts received (from Auctions collection)
             const auctionsSnapshot = await db.collection('auctions')
                 .where('memberId', '==', currentUser.uid)
                 .get();
-            auctionsWonElement.textContent = auctionsSnapshot.size;
+            payoutsReceivedElement.textContent = auctionsSnapshot.size; // Updated Element
 
         } catch (error) {
             console.error('Error updating member stats:', error);
@@ -283,7 +291,11 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const startDate = new Date(chit.startDate);
             const currentDate = new Date();
-            const monthsPassed = Math.max(0, Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 30.44)));
+             // Calculate months passed accurately
+            const yearDiff = currentDate.getFullYear() - startDate.getFullYear();
+            const monthDiff = currentDate.getMonth() - startDate.getMonth();
+            const monthsPassed = Math.max(0, yearDiff * 12 + monthDiff + 1); // +1 for the current month being active
+
             const percentage = Math.min((monthsPassed / chit.duration) * 100, 100);
             
             return {
@@ -358,6 +370,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Show chit preview
+            const chitType = currentChitToJoin.chitType || 'auction';
+            const typeLabel = chitType === 'friendship' ? 'Friendship (Fixed Payout)' : 'Auction (Bidding)';
+            
+            document.getElementById('previewChitType').textContent = `Type: ${typeLabel}`;
             document.getElementById('previewChitName').textContent = `Name: ${currentChitToJoin.name}`;
             document.getElementById('previewChitAmount').textContent = `Total Amount: ₹${currentChitToJoin.totalAmount?.toLocaleString()}`;
             document.getElementById('previewMonthlyAmount').textContent = `Monthly: ₹${currentChitToJoin.monthlyAmount?.toLocaleString()}`;
@@ -384,7 +400,29 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             setLoading(joinChitConfirmBtn, true);
 
-            // Generate a simple chit code for the member
+            // Fetch member details (ensuring a 'member' record exists)
+            let memberDoc = await db.collection('members').doc(currentUser.uid).get();
+            let memberData;
+            
+            if (!memberDoc.exists) {
+                // Member might be a self-registered user who hasn't been managed by a manager yet.
+                // Create a basic member record for consistency.
+                 memberData = {
+                    name: userData.name || currentUser.email.split('@')[0],
+                    phone: userData.phone || 'N/A',
+                    managerId: currentChitToJoin.managerId, // Link to the chit's manager
+                    activeChits: 0,
+                    totalPaid: 0,
+                    status: 'active',
+                    joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                await db.collection('members').doc(currentUser.uid).set(memberData);
+            } else {
+                memberData = memberDoc.data();
+            }
+
+
+            // Generate a simple member code (optional, but harmless)
             const memberCode = 'MEM' + Math.random().toString(36).substr(2, 5).toUpperCase();
 
             const membershipData = {
@@ -405,6 +443,12 @@ document.addEventListener('DOMContentLoaded', function() {
             await db.collection('chits').doc(currentChitToJoin.id).update({
                 currentMembers: (currentChitToJoin.currentMembers || 0) + 1
             });
+            
+            // Update member's active chits count
+            await db.collection('members').doc(currentUser.uid).update({
+                activeChits: (memberData.activeChits || 0) + 1
+            });
+
 
             showSuccess(`Successfully joined ${currentChitToJoin.name}!`);
             
@@ -439,7 +483,11 @@ document.addEventListener('DOMContentLoaded', function() {
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
         } else {
             button.disabled = false;
-            button.innerHTML = button === verifyChitBtn ? 'Verify Code' : 'Join Chit Fund';
+            if (button === verifyChitBtn) {
+                 button.innerHTML = 'Verify Code';
+            } else if (button === joinChitConfirmBtn) {
+                 button.innerHTML = 'Join Chit Fund';
+            }
         }
     }
 
