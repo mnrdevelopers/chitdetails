@@ -93,6 +93,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('saveAuctionBtn')?.addEventListener('click', recordAuction);
         document.getElementById('savePaymentBtn')?.addEventListener('click', recordPayment);
         document.getElementById('updateChitBtn')?.addEventListener('click', updateChitFund);
+
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await auth.signOut();
+                // FIX: Redirect to index.html (main page) instead of auth.html
+                window.location.href = 'index.html'; 
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        });
     }
     
     // NEW: Show Edit Profile Modal
@@ -1560,14 +1570,7 @@ async function deletePayment(paymentId) {
         await showRecordPaymentModal();
     });
 
-    logoutBtn.addEventListener('click', async () => {
-        try {
-            await auth.signOut();
-            window.location.href = 'auth.html';
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
-    });
+    // logoutBtn.addEventListener('click', is defined in setupEventListeners
 
     // Create chit fund
     async function createChitFund() {
