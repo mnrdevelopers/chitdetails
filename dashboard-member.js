@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const myChitsCountElement = document.getElementById('myChitsCount');
     const totalPaidElement = document.getElementById('totalPaid');
     const duePaymentsElement = document.getElementById('duePayments');
-    const payoutsReceivedElement = document.getElementById('payoutsReceived'); // Renamed
+    const payoutsReceivedElement = document.getElementById('auctionsWon'); // Renamed ID in HTML to auctionsWon, keeping JS reference consistent
     
     const myChitsList = document.getElementById('myChitsList');
     const paymentsHistory = document.getElementById('paymentsHistory');
@@ -24,9 +24,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const verifyChitBtn = document.getElementById('verifyChitBtn');
     const joinChitConfirmBtn = document.getElementById('joinChitConfirmBtn');
     const logoutBtn = document.getElementById('logoutBtn');
+    const myProfileNavBtn = document.getElementById('myProfileNavBtn'); // NAV BAR LINK
+    const saveProfileBtn = document.getElementById('saveProfileBtn'); // MODAL BUTTON
 
-    // Modal instance
+    // Profile Modal Inputs
+    const editProfileNameInput = document.getElementById('editProfileName');
+    const editProfilePhoneInput = document.getElementById('editProfilePhone');
+    const editProfileEmailInput = document.getElementById('editProfileEmail');
+    const editProfileRoleInput = document.getElementById('editProfileRole');
+
+    // Modal instances
     const joinChitModal = new bootstrap.Modal(document.getElementById('joinChitModal'));
+    const editProfileModal = new bootstrap.Modal(document.getElementById('editProfileModal')); // NEW
 
     let currentUser = null;
     let userData = null;
@@ -40,10 +49,101 @@ document.addEventListener('DOMContentLoaded', function() {
             await checkMemberRole();
             await loadMemberDashboard();
             updateUI();
+            setupEventListeners(); 
         } else {
             window.location.href = 'auth.html';
         }
     });
+
+    // Setup Event Listeners
+    function setupEventListeners() {
+        myProfileNavBtn?.addEventListener('click', showEditProfileModal);
+        saveProfileBtn?.addEventListener('click', updateProfile);
+
+        joinChitBtn.addEventListener('click', () => {
+            joinChitModal.show();
+        });
+
+        joinNewChitBtn.addEventListener('click', () => {
+            joinChitModal.show();
+        });
+
+        verifyChitBtn.addEventListener('click', async () => {
+            await verifyChitCode();
+        });
+
+        joinChitConfirmBtn.addEventListener('click', async () => {
+            await joinChitFund();
+        });
+
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await auth.signOut();
+                window.location.href = 'auth.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        });
+    }
+
+    // Show Edit Profile Modal
+    function showEditProfileModal() {
+        if (!userData) {
+            alert('User data not loaded. Please try again.');
+            return;
+        }
+        
+        // Populate modal inputs
+        editProfileNameInput.value = userData.name || '';
+        editProfilePhoneInput.value = userData.phone || '';
+        editProfileEmailInput.value = userData.email || currentUser.email || '';
+        editProfileRoleInput.value = (userData.role || 'Member').charAt(0).toUpperCase() + (userData.role || 'Member').slice(1);
+
+        editProfileModal.show();
+    }
+    
+    // Update Profile Function
+    async function updateProfile() {
+        const name = editProfileNameInput.value.trim();
+        const phone = editProfilePhoneInput.value.trim();
+        
+        if (!name) {
+            alert('Full Name is required.');
+            return;
+        }
+        
+        try {
+            setLoading(saveProfileBtn, true, 'Save Changes');
+            
+            const updateData = {
+                name: name,
+                phone: phone,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            // 1. Update the main user document
+            await db.collection('users').doc(currentUser.uid).update(updateData);
+            
+            // 2. Update the member's specific record (used for manager tracking if it exists)
+            const memberDoc = await db.collection('members').doc(currentUser.uid).get();
+            if (memberDoc.exists) {
+                await db.collection('members').doc(currentUser.uid).update(updateData);
+            }
+            
+            // 3. Reload data and UI
+            await loadUserData(); // Refresh local userData object
+            updateUI(); // Refresh UI elements
+            
+            editProfileModal.hide();
+            showSuccess('Profile updated successfully!');
+            
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            alert('Error updating profile: ' + error.message);
+        } finally {
+            setLoading(saveProfileBtn, false, 'Save Changes');
+        }
+    }
 
     // Load user data
     async function loadUserData() {
@@ -102,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-file-contract fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">No Chit Funds Joined</h5>
                         <p class="text-muted">Join a chit fund to start investing</p>
-                        <button class="btn btn-primary mt-3" onclick="joinChitModal.show()">
+                        <button class="btn btn-primary mt-3" onclick="window.joinChitModal.show()">
                             <i class="fas fa-plus me-2"></i>Join Your First Chit Fund
                         </button>
                     </div>
@@ -110,18 +210,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            for (const doc of membershipsSnapshot.docs) {
+            const chitPromises = membershipsSnapshot.docs.map(async doc => {
                 const membership = { id: doc.id, ...doc.data() };
                 try {
                     const chitDoc = await db.collection('chits').doc(membership.chitId).get();
                     if (chitDoc.exists) {
-                        const chit = { id: chitDoc.id, ...chitDoc.data() };
-                        renderMyChitFund(chit, membership);
+                        return { chit: { id: chitDoc.id, ...chitDoc.data() }, membership };
                     }
                 } catch (error) {
                     console.warn('Error loading chit details:', error);
                 }
-            }
+                return null;
+            });
+            
+            const results = await Promise.all(chitPromises);
+            
+            results.filter(r => r !== null).forEach(r => {
+                renderMyChitFund(r.chit, r.membership);
+            });
             
         } catch (error) {
             console.error('Error loading my chit funds:', error);
@@ -136,13 +242,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Render member's chit fund
     function renderMyChitFund(chit, membership) {
         const progress = calculateChitProgress(chit);
-        
-        // Determine type display
-        const chitType = chit.chitType || 'auction';
-        const typeLabel = chitType === 'friendship' ? 'Friendship (Fixed Payout)' : 'Auction (Bidding)';
-
         const chitElement = document.createElement('div');
         chitElement.className = 'chit-item';
+        
+        const chitType = chit.chitType || 'auction';
+        const typeLabel = chitType === 'friendship' ? 'Friendship (Fixed Payout)' : 'Auction (Bidding)';
+        const typeIcon = chitType === 'friendship' ? 'fas fa-handshake' : 'fas fa-gavel';
+
+
         chitElement.innerHTML = `
             <div class="chit-header">
                 <div>
@@ -151,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="chit-status-indicator">
                     <span class="badge bg-info me-2">
-                        ${typeLabel}
+                        <i class="${typeIcon} me-1"></i>${typeLabel}
                     </span>
                     <span class="badge ${membership.status === 'approved' ? 'bg-success' : 'bg-warning'}">
                         ${membership.status}
@@ -263,19 +370,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             let totalPaid = 0;
             paymentsSnapshot.forEach(doc => {
-                totalPaid += doc.data().amount;
+                totalPaid += doc.data().amount || 0;
             });
             totalPaidElement.textContent = `₹${totalPaid.toLocaleString()}`;
 
-            // Count due payments (simplified - next month payment)
-            // This is a rough calculation based on active chits
+            // Count due payments (simplified - next month payment for active chits)
             duePaymentsElement.textContent = membershipsSnapshot.size;
 
-            // Count payouts received (from Auctions collection)
+            // Count payouts received (auctions won for auction chits, or fixed payouts for friendship chits)
             const auctionsSnapshot = await db.collection('auctions')
                 .where('memberId', '==', currentUser.uid)
                 .get();
-            payoutsReceivedElement.textContent = auctionsSnapshot.size; // Updated Element
+            payoutsReceivedElement.textContent = auctionsSnapshot.size;
 
         } catch (error) {
             console.error('Error updating member stats:', error);
@@ -291,11 +397,11 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const startDate = new Date(chit.startDate);
             const currentDate = new Date();
-             // Calculate months passed accurately
+            // Calculate months passed accurately
             const yearDiff = currentDate.getFullYear() - startDate.getFullYear();
             const monthDiff = currentDate.getMonth() - startDate.getMonth();
             const monthsPassed = Math.max(0, yearDiff * 12 + monthDiff + 1); // +1 for the current month being active
-
+            
             const percentage = Math.min((monthsPassed / chit.duration) * 100, 100);
             
             return {
@@ -307,35 +413,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event Listeners
-    joinChitBtn.addEventListener('click', () => {
-        joinChitModal.show();
-    });
-
-    joinNewChitBtn.addEventListener('click', () => {
-        joinChitModal.show();
-    });
-
-    verifyChitBtn.addEventListener('click', async () => {
-        await verifyChitCode();
-    });
-
-    joinChitConfirmBtn.addEventListener('click', async () => {
-        await joinChitFund();
-    });
-
-    logoutBtn.addEventListener('click', async () => {
-        try {
-            await auth.signOut();
-            window.location.href = 'auth.html';
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
-    });
-
     // Verify chit code
     async function verifyChitCode() {
         const chitCode = document.getElementById('chitCode').value.trim().toUpperCase();
+        const verifyBtn = document.getElementById('verifyChitBtn');
         
         if (!chitCode) {
             alert('Please enter a chit code');
@@ -343,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            setLoading(verifyChitBtn, true);
+            setLoading(verifyBtn, true);
 
             const chitsSnapshot = await db.collection('chits')
                 .where('chitCode', '==', chitCode)
@@ -370,23 +451,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Show chit preview
-            const chitType = currentChitToJoin.chitType || 'auction';
-            const typeLabel = chitType === 'friendship' ? 'Friendship (Fixed Payout)' : 'Auction (Bidding)';
-            
-            document.getElementById('previewChitType').textContent = `Type: ${typeLabel}`;
             document.getElementById('previewChitName').textContent = `Name: ${currentChitToJoin.name}`;
             document.getElementById('previewChitAmount').textContent = `Total Amount: ₹${currentChitToJoin.totalAmount?.toLocaleString()}`;
             document.getElementById('previewMonthlyAmount').textContent = `Monthly: ₹${currentChitToJoin.monthlyAmount?.toLocaleString()}`;
+            document.getElementById('previewChitType').textContent = `Type: ${(currentChitToJoin.chitType || 'auction').charAt(0).toUpperCase() + (currentChitToJoin.chitType || 'auction').slice(1)}`;
             
             document.getElementById('chitPreview').classList.remove('d-none');
-            verifyChitBtn.classList.add('d-none');
+            verifyBtn.classList.add('d-none');
             joinChitConfirmBtn.classList.remove('d-none');
 
         } catch (error) {
             console.error('Error verifying chit code:', error);
             alert('Error verifying chit code: ' + error.message);
         } finally {
-            setLoading(verifyChitBtn, false);
+            setLoading(verifyBtn, false);
         }
     }
 
@@ -396,42 +474,49 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Please verify chit code first');
             return;
         }
+        const joinBtn = document.getElementById('joinChitConfirmBtn');
 
         try {
-            setLoading(joinChitConfirmBtn, true);
+            setLoading(joinBtn, true);
 
-            // Fetch member details (ensuring a 'member' record exists)
-            let memberDoc = await db.collection('members').doc(currentUser.uid).get();
-            let memberData;
+            // Fetch the user's latest data to ensure name is correct in the membership
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            const memberName = userDoc.data()?.name || currentUser.email.split('@')[0];
             
-            if (!memberDoc.exists) {
-                // Member might be a self-registered user who hasn't been managed by a manager yet.
-                // Create a basic member record for consistency.
-                 memberData = {
-                    name: userData.name || currentUser.email.split('@')[0],
-                    phone: userData.phone || 'N/A',
-                    managerId: currentChitToJoin.managerId, // Link to the chit's manager
-                    activeChits: 0,
+            // Check if the member has a 'members' record managed by the chit manager.
+            // If they don't, create one for easier manager tracking.
+            const managerId = currentChitToJoin.managerId;
+            const memberRecordRef = db.collection('members').doc(currentUser.uid);
+            const memberRecordDoc = await memberRecordRef.get();
+            
+            if (!memberRecordDoc.exists) {
+                const newMemberData = {
+                    name: memberName,
+                    email: currentUser.email,
+                    phone: userDoc.data()?.phone || 'N/A (Self Registered)',
+                    managerId: managerId,
+                    activeChits: 1,
                     totalPaid: 0,
                     status: 'active',
                     joinedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
-                await db.collection('members').doc(currentUser.uid).set(memberData);
+                await memberRecordRef.set(newMemberData, { merge: true });
             } else {
-                memberData = memberDoc.data();
+                 // Update existing member record active chits count
+                 const memberData = memberRecordDoc.data();
+                 await memberRecordRef.update({
+                    activeChits: (memberData.activeChits || 0) + 1
+                 });
             }
 
-
-            // Generate a simple member code (optional, but harmless)
-            const memberCode = 'MEM' + Math.random().toString(36).substr(2, 5).toUpperCase();
 
             const membershipData = {
                 chitId: currentChitToJoin.id,
                 memberId: currentUser.uid,
                 chitName: currentChitToJoin.name,
                 chitCode: currentChitToJoin.chitCode,
-                memberCode: memberCode,
-                managerId: currentChitToJoin.managerId,
+                memberName: memberName,
+                managerId: managerId,
                 joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 status: 'approved', // Auto-approve for simplicity
                 totalPaid: 0
@@ -443,12 +528,6 @@ document.addEventListener('DOMContentLoaded', function() {
             await db.collection('chits').doc(currentChitToJoin.id).update({
                 currentMembers: (currentChitToJoin.currentMembers || 0) + 1
             });
-            
-            // Update member's active chits count
-            await db.collection('members').doc(currentUser.uid).update({
-                activeChits: (memberData.activeChits || 0) + 1
-            });
-
 
             showSuccess(`Successfully joined ${currentChitToJoin.name}!`);
             
@@ -463,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error joining chit fund:', error);
             alert('Error joining chit fund: ' + error.message);
         } finally {
-            setLoading(joinChitConfirmBtn, false);
+            setLoading(joinBtn, false);
         }
     }
 
@@ -475,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Set loading state
-    function setLoading(button, isLoading) {
+    function setLoading(button, isLoading, originalText = 'Button') {
         if (!button) return;
         
         if (isLoading) {
@@ -483,11 +562,14 @@ document.addEventListener('DOMContentLoaded', function() {
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
         } else {
             button.disabled = false;
-            if (button === verifyChitBtn) {
-                 button.innerHTML = 'Verify Code';
-            } else if (button === joinChitConfirmBtn) {
-                 button.innerHTML = 'Join Chit Fund';
-            }
+            // Restore original text based on button ID, or use originalText if provided
+            const restoreText = originalText === 'Button' ? ({
+                'verifyChitBtn': 'Verify Code',
+                'joinChitConfirmBtn': 'Join Chit Fund',
+                'saveProfileBtn': 'Save Changes'
+            }[button.id] || 'Button') : originalText;
+            
+            button.innerHTML = restoreText;
         }
     }
 
