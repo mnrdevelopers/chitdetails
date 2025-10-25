@@ -23,7 +23,8 @@
                         <span id="userName">Member</span>
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" id="joinChitBtn">Join Chit Fund</a></li>
+                        <li><a class="dropdown-item" href="#" id="joinChitBtn"><i class="fas fa-plus me-2"></i>Join Chit Fund</a></li>
+                        <li><a class="dropdown-item" href="#" id="myProfileNavBtn"><i class="fas fa-user me-2"></i>My Profile</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
                     </ul>
@@ -84,8 +85,8 @@
                         <i class="fas fa-trophy"></i>
                     </div>
                     <div class="stat-info">
-                        <h3 id="payoutsReceived">0</h3> <!-- Renamed from auctionsWon -->
-                        <p>Payouts Received</p> <!-- Renamed from Auctions Won -->
+                        <h3 id="auctionsWon">0</h3>
+                        <p>Payouts Received</p>
                     </div>
                 </div>
             </div>
@@ -105,6 +106,7 @@
                             <i class="fas fa-rupee-sign me-2"></i>Payment History
                         </button>
                     </li>
+                    <!-- PROFILE TAB REMOVED - MOVED TO NAVBAR DROPDOWN -->
                 </ul>
 
                 <div class="tab-content" id="memberTabContent">
@@ -130,6 +132,8 @@
                             <!-- Payment history will be loaded here -->
                         </div>
                     </div>
+                    
+                    <!-- PROFILE TAB CONTENT REMOVED -->
                 </div>
             </div>
         </div>
@@ -152,16 +156,54 @@
                     </form>
                     <div id="chitPreview" class="chit-preview d-none mt-3 p-3 border rounded">
                         <h6>Chit Fund Details:</h6>
-                        <p id="previewChitType" class="mb-1 text-muted"></p>
                         <p id="previewChitName" class="mb-1"></p>
                         <p id="previewChitAmount" class="mb-1"></p>
                         <p id="previewMonthlyAmount" class="mb-0"></p>
+                        <p id="previewChitType" class="mb-0"></p>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" id="verifyChitBtn">Verify Code</button>
                     <button type="button" class="btn btn-success d-none" id="joinChitConfirmBtn">Join Chit Fund</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Profile Modal (NEW) -->
+    <div class="modal fade" id="editProfileModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit My Profile</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProfileForm">
+                        <div class="mb-3">
+                            <label for="editProfileName" class="form-label">Full Name *</label>
+                            <input type="text" class="form-control" id="editProfileName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editProfilePhone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="editProfilePhone">
+                            <small class="form-text text-muted">Used for contact and notifications.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editProfileEmail" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="editProfileEmail" disabled>
+                            <small class="form-text text-muted">Email cannot be changed.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editProfileRole" class="form-label">Role</label>
+                            <input type="text" class="form-control" id="editProfileRole" disabled>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveProfileBtn">Save Changes</button>
                 </div>
             </div>
         </div>
