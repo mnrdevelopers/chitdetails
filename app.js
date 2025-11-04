@@ -236,3 +236,179 @@ function checkPWACompatibility() {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { checkPWACompatibility };
 }
+
+// Enhanced app.js with centralized PWA management
+class PWAManager {
+    constructor() {
+        this.deferredPrompt = null;
+        this.isOnline = navigator.onLine;
+        this.init();
+    }
+
+    init() {
+        this.registerServiceWorker();
+        this.setupInstallPrompt();
+        this.setupNetworkMonitoring();
+        this.setupUpdateChecking();
+    }
+
+    registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('SW registered: ', registration);
+                    
+                    // Check for updates periodically
+                    setInterval(() => {
+                        registration.update();
+                    }, 60 * 60 * 1000); // Check every hour
+                })
+                .catch(error => {
+                    console.log('SW registration failed: ', error);
+                });
+        }
+    }
+
+    setupInstallPrompt() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredPrompt = e;
+            this.showInstallButton();
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            this.deferredPrompt = null;
+            this.hideInstallButton();
+        });
+    }
+
+    showInstallButton() {
+        // Create install button if it doesn't exist
+        let installBtn = document.getElementById('pwa-install-button');
+        if (!installBtn) {
+            installBtn = document.createElement('button');
+            installBtn.id = 'pwa-install-button';
+            installBtn.className = 'btn btn-success btn-sm';
+            installBtn.innerHTML = '<i class="fas fa-download me-2"></i>Install App';
+            installBtn.addEventListener('click', () => this.installApp());
+            
+            // Add to appropriate location based on page
+            const container = document.querySelector('.hero-buttons') || 
+                             document.querySelector('.action-buttons') ||
+                             document.querySelector('.navbar-nav');
+            if (container) {
+                container.appendChild(installBtn);
+            }
+        }
+        installBtn.style.display = 'block';
+    }
+
+    hideInstallButton() {
+        const installBtn = document.getElementById('pwa-install-button');
+        if (installBtn) {
+            installBtn.style.display = 'none';
+        }
+    }
+
+    installApp() {
+        if (this.deferredPrompt) {
+            this.deferredPrompt.prompt();
+            this.deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted install');
+                }
+                this.deferredPrompt = null;
+                this.hideInstallButton();
+            });
+        }
+    }
+
+    setupNetworkMonitoring() {
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.hideOfflineIndicator();
+            this.syncData();
+        });
+
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.showOfflineIndicator();
+        });
+
+        // Initial status
+        this.isOnline ? this.hideOfflineIndicator() : this.showOfflineIndicator();
+    }
+
+    showOfflineIndicator() {
+        let indicator = document.getElementById('offline-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'offline-indicator';
+            indicator.className = 'offline-indicator';
+            indicator.innerHTML = `
+                <i class="fas fa-wifi-slash me-2"></i>
+                You are currently offline. Some features may be limited.
+            `;
+            document.body.prepend(indicator);
+        }
+        indicator.style.display = 'block';
+    }
+
+    hideOfflineIndicator() {
+        const indicator = document.getElementById('offline-indicator');
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+    }
+
+    setupUpdateChecking() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            this.showUpdateNotification();
+                        }
+                    });
+                });
+            });
+        }
+    }
+
+    showUpdateNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-info alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+        notification.style.zIndex = '9999';
+        notification.innerHTML = `
+            <i class="fas fa-sync-alt me-2"></i>
+            A new version is available!
+            <button type="button" class="btn btn-sm btn-outline-info ms-2" onclick="window.location.reload()">
+                Update Now
+            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(notification);
+    }
+
+    async syncData() {
+        // Implement data synchronization when back online
+        console.log('Syncing data...');
+        // Add your sync logic here
+    }
+}
+
+// Initialize PWA Manager when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize PWA Manager
+    window.pwaManager = new PWAManager();
+
+    // Rest of your existing app.js code...
+    // [Keep all your existing app.js functionality here]
+});
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = PWAManager;
+}
