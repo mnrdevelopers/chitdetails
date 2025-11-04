@@ -2,13 +2,17 @@
   "name": "ChitFund Pro",
   "short_name": "ChitFundPro",
   "description": "Professional chit fund management application with offline capabilities",
-  "start_url": "/index.html",
+  "start_url": "https://mnrdevelopers.github.io/chitdetails/",
   "display": "standalone",
   "background_color": "#FFFD8F",
   "theme_color": "#4C763B",
   "orientation": "portrait-primary",
-  "scope": "/",
-  "categories": ["finance", "business", "productivity"],
+  "scope": "https://mnrdevelopers.github.io/chitdetails/",
+  "categories": [
+    "finance",
+    "business",
+    "productivity"
+  ],
   "lang": "en-US",
   "dir": "ltr",
   "icons": [
