@@ -1309,3 +1309,108 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* PWA Specific Styles */
+/* App-like scroll behavior */
+html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text selection on interactive elements */
+.btn, .nav-link, .form-control {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Enhanced touch targets for mobile */
+.btn, .nav-link, .form-check-label {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Safe area insets for notched devices */
+.safe-area-padding {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+/* PWA installation prompt styles */
+.install-prompt {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    padding: 15px;
+    z-index: 10000;
+    max-width: 400px;
+    width: 90%;
+}
+
+/* Offline indicator */
+.offline-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ffc107;
+    color: #000;
+    text-align: center;
+    padding: 10px;
+    z-index: 9999;
+    font-weight: 500;
+}
+
+/* Enhanced loading states */
+.loading-pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Splash screen styles for PWA */
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.splash-content {
+    text-align: center;
+    color: var(--dark);
+}
+
+.splash-logo {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+/* Enhanced modal for PWA */
+.modal-backdrop {
+    backdrop-filter: blur(5px);
+}
+
+/* Better touch feedback */
+.btn:active {
+    transform: scale(0.98);
+    transition: transform 0.1s;
+}
+
