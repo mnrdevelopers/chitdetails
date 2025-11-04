@@ -506,5 +506,44 @@
 
    <script src="firebase-config.js"></script>
    <script src="dashboard-manager.js"></script>
+    <!-- Add to dashboard-manager.html before other scripts -->
+<script>
+// Service Worker Registration for Manager Dashboard
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+                console.log('Manager SW registered: ', registration.scope);
+                
+                // Check for updates every hour
+                setInterval(() => {
+                    registration.update();
+                }, 60 * 60 * 1000);
+            })
+            .catch(function(error) {
+                console.log('Manager SW registration failed: ', error);
+            });
+    });
+}
+
+// Offline functionality for manager
+window.addEventListener('online', function() {
+    console.log('Manager is online');
+    // Sync any pending operations
+    if (typeof syncPendingOperations === 'function') {
+        syncPendingOperations();
+    }
+});
+
+window.addEventListener('offline', function() {
+    console.log('Manager is offline');
+    showOfflineNotification();
+});
+
+function showOfflineNotification() {
+    // This will be implemented in dashboard-manager.js
+    console.log('Offline mode activated');
+}
+</script>
 </body>
 </html>
